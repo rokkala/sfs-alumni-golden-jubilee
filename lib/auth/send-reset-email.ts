@@ -2,7 +2,7 @@ import { appOrigin } from '@/lib/auth/app-origin';
 
 export async function sendPasswordResetEmail(to: string, plainToken: string): Promise<void> {
   const link = `${appOrigin()}/reset-password/${encodeURIComponent(plainToken)}`;
-  const from = process.env.EMAIL_FROM?.trim() || 'SFS Alumni <onboarding@resend.dev>';
+  const from = process.env.EMAIL_FROM?.trim() || 'SFS Alumni <admin@alumnicorner.org>';
   const apiKey = process.env.RESEND_API_KEY?.trim();
 
   const subject = 'Reset your SFS Alumni password';

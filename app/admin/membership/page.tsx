@@ -132,6 +132,39 @@ export default function AdminMembershipPage() {
     }
   }
 
+  async function resetPassword(p: Person) {
+    if (
+      !window.confirm(
+        `Set a temporary password for ${p.full_name} (${p.email})? Share it with them by phone/WhatsApp.`
+      )
+    ) {
+      return;
+    }
+    setBusy(p.id);
+    setMessage('');
+    try {
+      const res = await fetch(`/api/admin/members/${p.id}/password`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(payload.error || 'Could not set password.');
+        return;
+      }
+      const temp = String(payload.temporaryPassword || '');
+      setMessage(
+        `Temporary password for ${p.full_name}: ${temp} — copy and send offline. They should change it after login.`
+      );
+      if (temp && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(temp).catch(() => undefined);
+      }
+    } finally {
+      setBusy('');
+    }
+  }
+
   function statusBadge(s: MemberStatus) {
     const styles: Record<MemberStatus, string> = {
       pending: 'bg-secondary-container text-on-secondary-fixed',
@@ -171,6 +204,9 @@ export default function AdminMembershipPage() {
 
     return (
       <div className="flex flex-wrap gap-2 justify-end">
+        <button disabled={disabled} className={btn} onClick={() => void resetPassword(p)}>
+          Set password
+        </button>
         {p.member_status === 'verified' && (
           <>
             <button disabled={disabled} className={btn} onClick={() => decide(p.id, 'suspended')}>

@@ -76,7 +76,8 @@ function ResetPasswordRequestForm() {
           </div>
           <h1 className="text-headline-lg text-primary mb-2">Reset password</h1>
           <p className="text-body-sm text-on-surface-variant">
-            Enter your account email. We will send a one-hour link to choose a new password.
+            Prefer help without email? Contact the alumni committee — an admin can set a temporary
+            password for you. Optional email link below if mail is configured.
           </p>
         </div>
 
