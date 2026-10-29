@@ -112,8 +112,15 @@ export default function ChangePasswordPage() {
           </button>
         </form>
         <p className="mt-4 text-body-sm text-on-surface-variant">
-          Forgot your current password? Contact the alumni committee — an admin can set a temporary
-          one for you.
+          Forgot your current password? Use{' '}
+          <Link href="/reset-password" className="text-primary font-bold underline underline-offset-2">
+            Forgot password
+          </Link>{' '}
+          (phone + recovery questions), or ask the committee. Set questions under{' '}
+          <Link href="/account/recovery" className="text-primary font-bold underline underline-offset-2">
+            Recovery questions
+          </Link>
+          .
         </p>
         <Link href="/member" className="inline-block mt-3 text-primary font-bold underline underline-offset-2">
           Back to home

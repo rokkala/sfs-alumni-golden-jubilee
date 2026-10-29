@@ -107,8 +107,15 @@ export default function MemberPage() {
           >
             Change password
           </Link>
+          {' · '}
+          <Link
+            href="/account/recovery"
+            className="text-primary font-bold underline underline-offset-2"
+          >
+            Recovery questions
+          </Link>
           {' — '}
-          while signed in. If you forgot it, ask the alumni committee for a temporary password.
+          set two answers so you can reset without email. Forgot password uses those plus your phone.
         </p>
 
         <div className="mt-8 rounded-2xl bg-primary text-white p-8">
