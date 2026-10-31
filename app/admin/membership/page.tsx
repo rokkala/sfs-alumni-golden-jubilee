@@ -133,9 +133,13 @@ export default function AdminMembershipPage() {
   }
 
   async function resetPassword(p: Person) {
+    if (p.batch == null) {
+      setMessage(`Add a batch year for ${p.full_name} before resetting the password.`);
+      return;
+    }
     if (
       !window.confirm(
-        `Set a temporary password for ${p.full_name} (${p.email})? Share it with them by phone/WhatsApp.`
+        `Reset password for ${p.full_name} to username_${p.batch}? Share it offline (phone/WhatsApp).`
       )
     ) {
       return;
@@ -155,7 +159,7 @@ export default function AdminMembershipPage() {
       }
       const temp = String(payload.temporaryPassword || '');
       setMessage(
-        `Temporary password for ${p.full_name}: ${temp} — copy and send offline. They should change it after login.`
+        `Password for ${p.full_name}: ${temp} — copied if possible. Share offline; they can change it after login.`
       );
       if (temp && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(temp).catch(() => undefined);
@@ -205,7 +209,7 @@ export default function AdminMembershipPage() {
     return (
       <div className="flex flex-wrap gap-2 justify-end">
         <button disabled={disabled} className={btn} onClick={() => void resetPassword(p)}>
-          Set password
+          Reset password
         </button>
         {p.member_status === 'verified' && (
           <>
