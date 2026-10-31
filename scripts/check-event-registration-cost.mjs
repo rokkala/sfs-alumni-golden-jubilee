@@ -139,4 +139,24 @@ assert(counts.dinnerNonVeg === 1, 'dinner non-veg count');
 assert(counts.noFood === 1, 'no-food count');
 assert(legacySummaryFromGuests(mixedGuests).food_preference === 'mixed', 'legacy summary mixed');
 
+const zeroDinner = { ...jubilee, dinner_paise: 0, dinner_nonveg_paise: 0 };
+assert(
+  calculateEventRegistrationCost(zeroDinner, {
+    numberOfGuests: 1,
+    lunch: true,
+    dinner: true,
+    parkingNeeded: 'none',
+  }) === 30000,
+  'zero dinner price is not charged even if dinner is selected'
+);
+assert(
+  !getEventCostBreakdown(zeroDinner, {
+    numberOfGuests: 1,
+    lunch: true,
+    dinner: true,
+    parkingNeeded: 'none',
+  }).details.toLowerCase().includes('dinner'),
+  'breakdown omits zero-priced dinner'
+);
+
 console.log('PASS event registration cost');

@@ -172,6 +172,27 @@ function resolveGuests(input: CostCalculationInput): GuestChoice[] {
   );
 }
 
+function guestsForPricing(pricing: EventPricing, input: CostCalculationInput): GuestChoice[] {
+  // Inline clamp (avoid circular import with pricing.ts helpers used by the UI).
+  const lunchOn =
+    Math.max(0, pricing.lunch_paise || 0) > 0 ||
+    (pricing.lunch_nonveg_paise != null && Number(pricing.lunch_nonveg_paise) > 0);
+  const dinnerOn =
+    Math.max(0, pricing.dinner_paise || 0) > 0 ||
+    (pricing.dinner_nonveg_paise != null && Number(pricing.dinner_nonveg_paise) > 0);
+  return resolveGuests(input).map((g) => {
+    const guest = normalizeGuest(g);
+    if (!lunchOn && !dinnerOn) {
+      return { preference: 'none' as const, lunch: false, dinner: false };
+    }
+    return {
+      ...guest,
+      lunch: lunchOn && guest.lunch,
+      dinner: dinnerOn && guest.dinner,
+    };
+  });
+}
+
 export function getEventCostBreakdown(
   pricing: EventPricing,
   input: CostCalculationInput
@@ -182,7 +203,7 @@ export function getEventCostBreakdown(
   totalCost: number;
   details: string;
 } {
-  const guests = resolveGuests(input);
+  const guests = guestsForPricing(pricing, input);
   const totalPeople = guests.length;
   let mealCost = 0;
 
@@ -269,7 +290,7 @@ export function validateRegistrationCost(
 ): boolean {
   const pricing = maybeInput ? (pricingOrInput as EventPricing) : DEFAULT_JUBILEE_PRICING;
   const input = maybeInput ?? (pricingOrInput as CostCalculationInput);
-  const guests = resolveGuests(input);
+  const guests = guestsForPricing(pricing, input);
   const hasMeal = guests.some((g) => g.lunch || g.dinner);
   const hasParking = input.parkingNeeded !== 'none';
   const hasBase = (pricing.base_ticket_paise || 0) > 0;

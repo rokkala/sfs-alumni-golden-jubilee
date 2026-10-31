@@ -7,7 +7,7 @@ import {
 } from '@/lib/events/balance';
 import { selectCatalog } from '@/lib/events/catalog-select';
 import { type EventCatalog } from '@/lib/events/types';
-import { eventToPricing } from '@/lib/events/pricing';
+import { clampGuestMealsToPricing, eventToPricing } from '@/lib/events/pricing';
 import type { ExistingRegistrationRow } from '@/lib/events/existing-registration';
 import {
   calculateEventRegistrationCost,
@@ -191,16 +191,18 @@ export async function registerAccountForEvent(
     ? String(body.parking_needed)
     : 'none') as ParkingNeeded;
   const peopleHint = partySize(Number(body.number_of_guests));
-  const guests =
+  const pricing = eventToPricing(catalog);
+  const guests = clampGuestMealsToPricing(
+    pricing,
     Array.isArray(body.guests) && body.guests.length > 0
       ? normalizeGuests(body.guests, peopleHint)
-      : guestsFromLegacy(peopleHint, body.food_preference, Boolean(body.lunch), Boolean(body.dinner));
+      : guestsFromLegacy(peopleHint, body.food_preference, Boolean(body.lunch), Boolean(body.dinner))
+  );
   const summary = legacySummaryFromGuests(guests);
   const input = {
     guests,
     parkingNeeded,
   } satisfies CostCalculationInput;
-  const pricing = eventToPricing(catalog);
   if (!validateRegistrationCost(pricing, input)) {
     return {
       status: 400,
