@@ -35,7 +35,13 @@ export async function GET() {
       }))
     );
 
-    return NextResponse.json({ members });
+    return NextResponse.json({
+      members,
+      // temporary deploy marker — remove after prod verifies
+      _v: 'committee-js-filter-1',
+      _n: publishedRows.length,
+      _raw: (data || []).length,
+    });
   } catch (err) {
     console.error('committee list', err);
     return NextResponse.json({ error: 'Could not load committee' }, { status: 500 });
