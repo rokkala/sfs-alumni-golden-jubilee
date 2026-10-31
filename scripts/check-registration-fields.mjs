@@ -18,9 +18,9 @@ function assert(cond, msg) {
   }
 }
 
-assert(BATCH_START_YEAR === 1985, 'batch start');
-assert(batchYears(1987).join(',') === '1987,1986,1985', 'batch years desc');
-assert(isValidBatch(1985) && isValidBatch(new Date().getFullYear()) && !isValidBatch(1984), 'batch bounds');
+assert(BATCH_START_YEAR === 1986, 'batch start');
+assert(batchYears(1988).join(',') === '1988,1987,1986', 'batch years desc');
+assert(isValidBatch(1986) && isValidBatch(new Date().getFullYear()) && !isValidBatch(1985), 'batch bounds');
 assert(isValidSection('A') && isValidSection('D') && !isValidSection('E'), 'sections');
 assert(formatLocation('Hyderabad', 'India') === 'Hyderabad, India', 'format location');
 assert(formatLocation('', 'India') === '', 'format needs city');

@@ -1,4 +1,4 @@
-export const BATCH_START_YEAR = 1985;
+export const BATCH_START_YEAR = 1986;
 export const SECTIONS = ['A', 'B', 'C', 'D'] as const;
 export type Section = (typeof SECTIONS)[number];
 
