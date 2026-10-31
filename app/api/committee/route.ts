@@ -1,25 +1,70 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { COMMITTEE_BUCKET } from '@/lib/committee/sign';
 import { createAdminClient } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+function jwtRole(key: string | undefined): string | null {
+  if (!key) return null;
+  try {
+    const part = key.split('.')[1];
+    if (!part) return null;
+    const padded = part + '='.repeat((4 - (part.length % 4)) % 4);
+    const payload = JSON.parse(Buffer.from(padded, 'base64url').toString('utf8'));
+    return typeof payload.role === 'string' ? payload.role : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET() {
   try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const anonKey =
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      '';
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
     const admin = createAdminClient();
-    // Always use service role; filter published in JS (PostgREST boolean .eq was unreliable on Vercel).
     const { data, error } = await admin
       .from('committee_members')
       .select('id,full_name,role,email,batch,phone_number,photo_path,sort_order,published')
       .order('sort_order', { ascending: true })
       .order('full_name', { ascending: true });
 
-    if (error) {
-      console.error('committee list', error);
-      return NextResponse.json({ error: 'Could not load committee' }, { status: 500 });
+    // Fallback: anon + public-read RLS when service role returns nothing (misconfigured env).
+    let source: 'service' | 'anon' = 'service';
+    let rows = data || [];
+    let listError = error;
+
+    if ((!listError && rows.length === 0) || listError) {
+      if (url && anonKey) {
+        const anon = createClient(url, anonKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+        const anonRes = await anon
+          .from('committee_members')
+          .select('id,full_name,role,email,batch,phone_number,photo_path,sort_order,published')
+          .order('sort_order', { ascending: true })
+          .order('full_name', { ascending: true });
+        if (!anonRes.error && (anonRes.data?.length || 0) > 0) {
+          rows = anonRes.data || [];
+          listError = null;
+          source = 'anon';
+        } else if (listError && anonRes.error) {
+          console.error('committee list', listError, anonRes.error);
+          return NextResponse.json({ error: 'Could not load committee' }, { status: 500 });
+        }
+      } else if (listError) {
+        console.error('committee list', listError);
+        return NextResponse.json({ error: 'Could not load committee' }, { status: 500 });
+      }
     }
 
-    const publishedRows = (data || []).filter((row) => Boolean(row.published));
+    const publishedRows = rows.filter((row) => Boolean(row.published));
 
     const members = publishedRows.map((row) => {
       let photo_url: string | null = null;
@@ -39,10 +84,9 @@ export async function GET() {
       };
     });
 
-    // Temporary deploy check — remove once Association list is confirmed on Vercel.
     const supabaseHost = (() => {
       try {
-        return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || '').hostname;
+        return new URL(url).hostname;
       } catch {
         return null;
       }
@@ -52,8 +96,12 @@ export async function GET() {
       members,
       _diag: {
         host: supabaseHost,
-        total: (data || []).length,
+        source,
+        total: rows.length,
         published: publishedRows.length,
+        svcRole: jwtRole(serviceKey),
+        anonRole: jwtRole(anonKey),
+        svcErr: error?.message || null,
       },
     });
   } catch (err) {
