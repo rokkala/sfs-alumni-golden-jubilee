@@ -98,6 +98,25 @@ export default function MemberPage() {
           </div>
         )}
 
+        <Link
+          href="/member/donate"
+          className="donate-flash mt-6 mb-2 flex items-center gap-4 sm:gap-5 rounded-2xl border px-5 py-5 sm:px-7 sm:py-6 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <span className="material-symbols-outlined text-4xl shrink-0" aria-hidden>
+            volunteer_activism
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-label-sm uppercase tracking-[0.16em] font-bold opacity-90">
+              Support SFS
+            </p>
+            <h2 className="text-headline-sm mt-1">Donate to a cause</h2>
+            <p className="text-body-sm mt-1 opacity-90 max-w-xl">
+              Jubilee, students, or the association — pick a cause and give in a few taps.
+            </p>
+          </div>
+          <span className="text-label-md font-bold shrink-0 hidden sm:inline">Give now →</span>
+        </Link>
+
         <HomeDestinationLanes />
 
         <p className="mt-6 text-body-sm text-on-surface-variant">
@@ -126,13 +145,7 @@ export default function MemberPage() {
           <p className="text-body-sm text-white/80 mt-2 max-w-xl">
             Reconnect with your batch, contribute a memory, or help a younger generation find their way.
           </p>
-          <div className="mt-4 flex flex-wrap gap-4">
-            <Link
-              href="/member/donate"
-              className="inline-flex rounded-lg bg-white/15 px-4 py-2.5 text-label-sm font-bold text-secondary-fixed hover:bg-white/25"
-            >
-              Donate to a cause
-            </Link>
+          <div className="mt-4">
             <Link
               href="/about-association"
               className="inline-flex items-center text-label-sm text-secondary-fixed underline underline-offset-4"

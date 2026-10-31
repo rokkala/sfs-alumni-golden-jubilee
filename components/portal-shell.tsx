@@ -4,17 +4,20 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 
-const baseLinks: [string, string][] = [
-  ['/member', 'Home'],
-  ['/directory', 'People'],
-  ['/events', 'Events'],
-  ['/stories', 'Stories'],
-  ['/memories', 'Memories'],
-  ['/submissions', 'My submissions'],
+const baseLinks: { href: string; label: string; emphasize?: boolean }[] = [
+  { href: '/member', label: 'Home' },
+  { href: '/member/donate', label: 'Donate', emphasize: true },
+  { href: '/directory', label: 'People' },
+  { href: '/events', label: 'Events' },
+  { href: '/stories', label: 'Stories' },
+  { href: '/memories', label: 'Memories' },
+  { href: '/submissions', label: 'My submissions' },
 ];
 
 function linkActive(path: string, href: string) {
   if (href === '/admin') return path === '/admin' || path.startsWith('/admin/');
+  if (href === '/member/donate') return path === href || path.startsWith('/member/donate');
+  if (href === '/member') return path === '/member';
   return path === href;
 }
 
@@ -49,7 +52,9 @@ export default function PortalShell({
     };
   }, []);
 
-  const links = isAdmin ? [...baseLinks, ['/admin', 'Admin'] as [string, string]] : baseLinks;
+  const links = isAdmin
+    ? [...baseLinks, { href: '/admin', label: 'Admin' }]
+    : baseLinks;
 
   return (
     <main className="min-h-screen bg-surface pt-24 pb-16">
@@ -63,8 +68,19 @@ export default function PortalShell({
               Golden Jubilee
             </p>
             <nav aria-label="Alumni portal" className="flex flex-col gap-0.5">
-              {links.map(([href, label]) => {
+              {links.map(({ href, label, emphasize }) => {
                 const active = linkActive(path, href);
+                if (emphasize && !active) {
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className="donate-flash-nav rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-[12px] sm:text-sm leading-snug border border-transparent cursor-pointer"
+                    >
+                      {label}
+                    </Link>
+                  );
+                }
                 return (
                   <Link
                     key={href}

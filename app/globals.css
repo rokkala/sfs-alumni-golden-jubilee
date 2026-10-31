@@ -216,3 +216,42 @@ body {
   font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
 }
+
+/* Donate attention — cycles brand colors; off when reduced-motion */
+@keyframes donate-flash {
+  0%,
+  100% {
+    background-color: #8a6a3a;
+    border-color: #8a6a3a;
+    color: #ffffff;
+  }
+  33% {
+    background-color: #3d6b5c;
+    border-color: #3d6b5c;
+    color: #ffffff;
+  }
+  66% {
+    background-color: #9a7340;
+    border-color: #9a7340;
+    color: #ffffff;
+  }
+}
+
+.donate-flash {
+  animation: donate-flash 2.4s ease-in-out infinite;
+}
+
+.donate-flash-nav {
+  animation: donate-flash 2.4s ease-in-out infinite;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .donate-flash,
+  .donate-flash-nav {
+    animation: none;
+    background-color: #8a6a3a;
+    border-color: #8a6a3a;
+    color: #ffffff;
+  }
+}
