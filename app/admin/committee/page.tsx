@@ -22,7 +22,7 @@ const emptyForm = {
   batch: '',
   phone_number: '',
   sort_order: '0',
-  published: false,
+  published: true,
 };
 
 export default function AdminCommitteePage() {
@@ -69,6 +69,10 @@ export default function AdminCommitteePage() {
     setClearPhoto(false);
     setOk('');
     setError('');
+    // Bring the edit form into view (easy to miss on small screens).
+    requestAnimationFrame(() => {
+      document.getElementById('committee-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   function startCreate() {
@@ -86,28 +90,56 @@ export default function AdminCommitteePage() {
     setError('');
     setOk('');
     try {
-      const body = new FormData();
-      body.set('full_name', form.full_name);
-      body.set('role', form.role);
-      body.set('email', form.email);
-      body.set('batch', form.batch);
-      body.set('phone_number', form.phone_number);
-      body.set('sort_order', form.sort_order);
-      body.set('published', form.published ? 'true' : 'false');
-      if (photo) body.set('photo', photo);
-      if (clearPhoto) body.set('clear_photo', 'true');
-
       const url = editingId ? `/api/admin/committee/${editingId}` : '/api/admin/committee';
-      const res = await fetch(url, {
-        method: editingId ? 'PATCH' : 'POST',
-        body,
-      });
+      let res: Response;
+
+      if (photo || (editingId && clearPhoto)) {
+        const body = new FormData();
+        body.set('full_name', form.full_name);
+        body.set('role', form.role);
+        body.set('email', form.email);
+        body.set('batch', form.batch);
+        body.set('phone_number', form.phone_number);
+        body.set('sort_order', form.sort_order);
+        body.set('published', form.published ? 'true' : 'false');
+        if (photo) body.set('photo', photo);
+        if (clearPhoto) body.set('clear_photo', 'true');
+        // POST for updates too — multipart PATCH is flaky in some environments.
+        res = await fetch(url, { method: 'POST', body });
+      } else if (editingId) {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            ...form,
+            published: form.published,
+            clear_photo: false,
+          }),
+        });
+      } else {
+        const body = new FormData();
+        body.set('full_name', form.full_name);
+        body.set('role', form.role);
+        body.set('email', form.email);
+        body.set('batch', form.batch);
+        body.set('phone_number', form.phone_number);
+        body.set('sort_order', form.sort_order);
+        body.set('published', form.published ? 'true' : 'false');
+        res = await fetch(url, { method: 'POST', body });
+      }
+
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(payload.error || 'Save failed');
         return;
       }
-      setOk(editingId ? 'Updated.' : 'Added.');
+      setOk(
+        editingId
+          ? 'Updated.'
+          : form.published
+            ? 'Added and published — visible under Association.'
+            : 'Added as draft — tick Published to show under Association.'
+      );
       startCreate();
       await load();
     } catch {
@@ -146,12 +178,16 @@ export default function AdminCommitteePage() {
 
       <div className="grid gap-8 lg:grid-cols-[1fr_1.1fr]">
         <form
+          id="committee-form"
           onSubmit={onSubmit}
           className="rounded-2xl border border-outline-variant bg-white p-5 space-y-3 h-fit"
         >
           <h3 className="text-headline-sm text-primary mb-2">
             {editingId ? 'Edit member' : 'Add member'}
           </h3>
+          <p className="text-body-sm text-on-surface-variant -mt-1 mb-1">
+            Keep <strong>Published</strong> checked so they appear in the Association popup.
+          </p>
           <Field label="Name" htmlFor="cm-name">
             <input
               id="cm-name"
