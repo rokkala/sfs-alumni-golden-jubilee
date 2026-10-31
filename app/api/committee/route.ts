@@ -49,11 +49,20 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url);
     if (url.searchParams.get('diag') === '1') {
+      const all = await admin.from('committee_members').select('id,published,full_name');
+      const head = await admin
+        .from('committee_members')
+        .select('*', { count: 'exact', head: true });
       return NextResponse.json({
         members,
         diag: {
           count: members.length,
           rawCount: data?.length ?? 0,
+          allCount: all.data?.length ?? 0,
+          allError: all.error?.message ?? null,
+          headCount: head.count,
+          headError: head.error?.message ?? null,
+          sample: (all.data || []).slice(0, 3),
           key: keyClaim(),
           urlHost: (() => {
             try {
