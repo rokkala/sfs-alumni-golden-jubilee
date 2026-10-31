@@ -1,54 +1,74 @@
 import { NextResponse } from 'next/server';
-import { committeePhotoUrl } from '@/lib/committee/sign';
+import { COMMITTEE_BUCKET } from '@/lib/committee/sign';
+import { createPublicClient } from '@/lib/supabase-public';
 import { createAdminClient } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const admin = createAdminClient();
-    // ponytail: filter published in JS — PostgREST `.eq('published', true)` returned 0 rows
-    // on Vercel while unfiltered select showed published:true. Upgrade: fix boolean filter / schema cache.
-    const { data, error } = await admin
-      .from('committee_members')
-      .select('id,full_name,role,email,batch,phone_number,photo_path,sort_order,published')
-      .order('sort_order', { ascending: true })
-      .order('full_name', { ascending: true });
+    // Prefer anon + RLS policy (published only). Fall back to service role + JS filter.
+    let rows: Array<{
+      id: string;
+      full_name: string;
+      role: string;
+      email: string;
+      batch: number;
+      phone_number: string | null;
+      photo_path: string | null;
+      sort_order: number;
+      published?: boolean;
+    }> = [];
 
-    if (error) {
-      console.error('committee list', error);
-      return NextResponse.json({ error: 'Could not load committee' }, { status: 500 });
+    try {
+      const pub = createPublicClient();
+      const { data, error } = await pub
+        .from('committee_members')
+        .select('id,full_name,role,email,batch,phone_number,photo_path,sort_order')
+        .order('sort_order', { ascending: true })
+        .order('full_name', { ascending: true });
+      if (!error && data) rows = data;
+      else if (error) console.error('committee public read', error);
+    } catch (err) {
+      console.error('committee public client', err);
     }
 
-    const publishedRows = (data || []).filter((row) => row.published === true);
+    if (!rows.length) {
+      const admin = createAdminClient();
+      const { data, error } = await admin
+        .from('committee_members')
+        .select('id,full_name,role,email,batch,phone_number,photo_path,sort_order,published')
+        .order('sort_order', { ascending: true })
+        .order('full_name', { ascending: true });
+      if (error) {
+        console.error('committee admin fallback', error);
+        return NextResponse.json({ error: 'Could not load committee' }, { status: 500 });
+      }
+      rows = (data || []).filter((row) => row.published === true);
+    }
 
+    const admin = createAdminClient();
     const members = await Promise.all(
-      publishedRows.map(async (row) => ({
-        id: row.id,
-        full_name: row.full_name,
-        role: row.role,
-        email: row.email,
-        batch: row.batch,
-        phone_number: row.phone_number,
-        sort_order: row.sort_order,
-        photo_url: await committeePhotoUrl(admin, row.photo_path),
-      }))
+      rows.map(async (row) => {
+        let photo_url: string | null = null;
+        if (row.photo_path) {
+          const { data: pub } = admin.storage.from(COMMITTEE_BUCKET).getPublicUrl(row.photo_path);
+          photo_url = pub?.publicUrl || null;
+        }
+        return {
+          id: row.id,
+          full_name: row.full_name,
+          role: row.role,
+          email: row.email,
+          batch: row.batch,
+          phone_number: row.phone_number,
+          sort_order: row.sort_order,
+          photo_url,
+        };
+      })
     );
 
-    const accounts = await admin
-      .from('alumni_accounts')
-      .select('*', { count: 'exact', head: true });
-
-    return NextResponse.json({
-      members,
-      // temporary deploy marker — remove after prod verifies
-      _v: 'committee-js-filter-2',
-      _n: publishedRows.length,
-      _raw: (data || []).length,
-      _accounts: accounts.count,
-      _accountsErr: accounts.error?.message ?? null,
-      _committeeErr: error?.message ?? null,
-    });
+    return NextResponse.json({ members });
   } catch (err) {
     console.error('committee list', err);
     return NextResponse.json({ error: 'Could not load committee' }, { status: 500 });
