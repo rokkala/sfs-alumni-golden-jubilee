@@ -19,7 +19,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Could not load committee' }, { status: 500 });
     }
 
-    const publishedRows = (data || []).filter((row) => row.published === true);
+    const publishedRows = (data || []).filter((row) => Boolean(row.published));
 
     const members = publishedRows.map((row) => {
       let photo_url: string | null = null;
@@ -39,7 +39,23 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ members });
+    // Temporary deploy check — remove once Association list is confirmed on Vercel.
+    const supabaseHost = (() => {
+      try {
+        return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || '').hostname;
+      } catch {
+        return null;
+      }
+    })();
+
+    return NextResponse.json({
+      members,
+      _diag: {
+        host: supabaseHost,
+        total: (data || []).length,
+        published: publishedRows.length,
+      },
+    });
   } catch (err) {
     console.error('committee list', err);
     return NextResponse.json({ error: 'Could not load committee' }, { status: 500 });
