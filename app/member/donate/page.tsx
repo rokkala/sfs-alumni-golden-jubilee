@@ -118,7 +118,7 @@ export default function MemberDonatePage() {
         setError('Payment cancelled');
         return;
       }
-      if ('failed' in checkout && checkout.failed) {
+      if ('failed' in checkout) {
         setError(checkout.message || 'Payment failed');
         return;
       }
