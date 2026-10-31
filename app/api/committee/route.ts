@@ -12,19 +12,30 @@ function cleanEnv(value: string | undefined): string {
     .replace(/^["']|["']$/g, '');
 }
 
-function jwtClaims(key: string): { role: string | null; ref: string | null } {
-  if (!key || !key.includes('.')) return { role: null, ref: null };
+function jwtClaims(key: string): {
+  role: string | null;
+  ref: string | null;
+  iat: number | null;
+  exp: number | null;
+  iss: string | null;
+} {
+  if (!key || !key.includes('.')) {
+    return { role: null, ref: null, iat: null, exp: null, iss: null };
+  }
   try {
     const part = key.split('.')[1];
-    if (!part) return { role: null, ref: null };
+    if (!part) return { role: null, ref: null, iat: null, exp: null, iss: null };
     const padded = part + '='.repeat((4 - (part.length % 4)) % 4);
     const payload = JSON.parse(Buffer.from(padded, 'base64url').toString('utf8'));
     return {
       role: typeof payload.role === 'string' ? payload.role : null,
       ref: typeof payload.ref === 'string' ? payload.ref : null,
+      iat: typeof payload.iat === 'number' ? payload.iat : null,
+      exp: typeof payload.exp === 'number' ? payload.exp : null,
+      iss: typeof payload.iss === 'string' ? payload.iss : null,
     };
   } catch {
-    return { role: null, ref: null };
+    return { role: null, ref: null, iat: null, exp: null, iss: null };
   }
 }
 
