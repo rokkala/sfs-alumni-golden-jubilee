@@ -14,5 +14,11 @@ export function createAdminClient(): SupabaseClient {
   }
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      // Next.js caches fetch() by default; an early empty committee response
+      // was sticking on Vercel while anon (different URL/headers) stayed fresh.
+      fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+        fetch(input, { ...init, cache: 'no-store' }),
+    },
   });
 }
