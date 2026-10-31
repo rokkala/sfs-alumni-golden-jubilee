@@ -2,24 +2,11 @@
 
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
+import CommitteeBusinessCard, {
+  type PublicCommitteeMember,
+} from '@/components/committee-business-card';
 
-export type PublicCommitteeMember = {
-  id: string;
-  full_name: string;
-  role: string;
-  email: string;
-  batch: number;
-  phone_number: string | null;
-  bio: string | null;
-  photo_url: string | null;
-};
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
+export type { PublicCommitteeMember };
 
 export default function AssociationModal({
   open,
@@ -80,7 +67,7 @@ export default function AssociationModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative z-[81] w-full sm:max-w-lg max-h-[90vh] overflow-hidden rounded-t-2xl sm:rounded-2xl bg-surface-paper border border-outline-variant shadow-xl flex flex-col"
+        className="relative z-[81] w-full sm:max-w-2xl max-h-[90vh] overflow-hidden rounded-t-2xl sm:rounded-2xl bg-surface-paper border border-outline-variant shadow-xl flex flex-col"
       >
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-outline-variant">
           <div>
@@ -116,50 +103,10 @@ export default function AssociationModal({
             </p>
           )}
           {members && members.length > 0 && (
-            <ul className="divide-y divide-outline-variant">
+            <ul className="grid gap-3 sm:grid-cols-2 list-none p-0 m-0">
               {members.map((m) => (
-                <li key={m.id} className="py-3.5 flex gap-3 items-start">
-                  {m.photo_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={m.photo_url}
-                      alt=""
-                      className="w-11 h-11 rounded-full object-cover shrink-0 bg-primary/5"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="w-11 h-11 rounded-full bg-primary/10 text-primary text-label-sm font-bold grid place-items-center shrink-0">
-                      {initials(m.full_name)}
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-label-sm uppercase tracking-wider text-jubilee-gold-deep font-bold">
-                      {m.role}
-                    </p>
-                    <p className="text-body-md text-primary font-semibold leading-snug">
-                      {m.full_name}
-                    </p>
-                    {m.bio ? (
-                      <p className="text-body-sm text-on-surface-variant mt-1 leading-snug">
-                        {m.bio}
-                      </p>
-                    ) : null}
-                    <p className="text-body-sm text-on-surface-variant mt-1">Batch {m.batch}</p>
-                    <a
-                      href={`mailto:${m.email}`}
-                      className="block text-body-sm text-primary hover:underline underline-offset-2 break-all mt-1 focus:outline-none focus:ring-2 focus:ring-primary/30 rounded"
-                    >
-                      {m.email}
-                    </a>
-                    {m.phone_number ? (
-                      <a
-                        href={`tel:${m.phone_number}`}
-                        className="block text-body-sm text-on-surface-variant hover:text-primary mt-0.5 focus:outline-none focus:ring-2 focus:ring-primary/30 rounded"
-                      >
-                        {m.phone_number}
-                      </a>
-                    ) : null}
-                  </div>
+                <li key={m.id} className="min-w-0">
+                  <CommitteeBusinessCard member={m} compact />
                 </li>
               ))}
             </ul>
