@@ -126,12 +126,20 @@ export default function MemberPage() {
           <p className="text-body-sm text-white/80 mt-2 max-w-xl">
             Reconnect with your batch, contribute a memory, or help a younger generation find their way.
           </p>
-          <Link
-            href="/about-association"
-            className="inline-flex mt-4 text-label-sm text-secondary-fixed underline underline-offset-4"
-          >
-            About the association
-          </Link>
+          <div className="mt-4 flex flex-wrap gap-4">
+            <Link
+              href="/member/donate"
+              className="inline-flex rounded-lg bg-white/15 px-4 py-2.5 text-label-sm font-bold text-secondary-fixed hover:bg-white/25"
+            >
+              Donate to a cause
+            </Link>
+            <Link
+              href="/about-association"
+              className="inline-flex items-center text-label-sm text-secondary-fixed underline underline-offset-4"
+            >
+              About the association
+            </Link>
+          </div>
         </div>
       </MemberGate>
     </PortalShell>

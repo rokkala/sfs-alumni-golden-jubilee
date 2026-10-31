@@ -19,6 +19,12 @@ const lanes: { href: string; title: string; body: string; icon: string }[] = [
     body: 'Browse published photos from your batch and all SFS.',
     icon: 'photo_library',
   },
+  {
+    href: '/member/donate',
+    title: 'Donate',
+    body: 'Support a cause — jubilee, students, or the association.',
+    icon: 'volunteer_activism',
+  },
 ];
 
 export default function HomeDestinationLanes() {
