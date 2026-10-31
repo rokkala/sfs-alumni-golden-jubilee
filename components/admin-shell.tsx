@@ -12,6 +12,7 @@ const LINKS: { href: string; label: string; icon: string; match?: 'exact' | 'pre
   { href: '/admin/registrations', label: 'Registrations', icon: 'confirmation_number', match: 'prefix' },
   { href: '/admin/memories', label: 'Memories', icon: 'photo_library', match: 'prefix' },
   { href: '/admin/stories', label: 'Stories', icon: 'menu_book', match: 'prefix' },
+  { href: '/admin/committee', label: 'Committee', icon: 'groups', match: 'prefix' },
   { href: '/admin/import', label: 'Import', icon: 'upload_file', match: 'prefix' },
 ];
 
