@@ -1,5 +1,6 @@
 const MAX_NAME = 120;
 const MAX_ROLE = 80;
+const MAX_BIO = 280;
 const MAX_BYTES = 4_000_000;
 const ALLOWED: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -15,6 +16,7 @@ export type CommitteeFields = {
   email: string;
   batch: number;
   phone_number: string | null;
+  bio: string | null;
   sort_order: number;
   published: boolean;
 };
@@ -30,6 +32,7 @@ export function assertCommitteeFields(input: {
   email?: unknown;
   batch?: unknown;
   phone_number?: unknown;
+  bio?: unknown;
   sort_order?: unknown;
   published?: unknown;
 }): CommitteeFields {
@@ -55,6 +58,12 @@ export function assertCommitteeFields(input: {
     throw new Error('Phone number looks too short');
   }
 
+  const bioRaw = String(input.bio ?? '').trim();
+  if (bioRaw.length > MAX_BIO) {
+    throw new Error(`Bio must be ${MAX_BIO} characters or fewer`);
+  }
+  const bio = bioRaw || null;
+
   const sortRaw = input.sort_order;
   const sort_order =
     sortRaw === undefined || sortRaw === null || String(sortRaw).trim() === ''
@@ -74,6 +83,7 @@ export function assertCommitteeFields(input: {
     email,
     batch: Math.trunc(batchNum),
     phone_number,
+    bio,
     sort_order,
     published,
   };

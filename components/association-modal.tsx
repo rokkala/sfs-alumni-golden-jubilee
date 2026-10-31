@@ -10,6 +10,7 @@ export type PublicCommitteeMember = {
   email: string;
   batch: number;
   phone_number: string | null;
+  bio: string | null;
   photo_url: string | null;
 };
 
@@ -138,7 +139,12 @@ export default function AssociationModal({
                     <p className="text-body-md text-primary font-semibold leading-snug">
                       {m.full_name}
                     </p>
-                    <p className="text-body-sm text-on-surface-variant">Batch {m.batch}</p>
+                    {m.bio ? (
+                      <p className="text-body-sm text-on-surface-variant mt-1 leading-snug">
+                        {m.bio}
+                      </p>
+                    ) : null}
+                    <p className="text-body-sm text-on-surface-variant mt-1">Batch {m.batch}</p>
                     <a
                       href={`mailto:${m.email}`}
                       className="block text-body-sm text-primary hover:underline underline-offset-2 break-all mt-1 focus:outline-none focus:ring-2 focus:ring-primary/30 rounded"

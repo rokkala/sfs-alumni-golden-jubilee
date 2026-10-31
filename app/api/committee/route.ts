@@ -10,7 +10,7 @@ export async function GET() {
     const admin = createAdminClient();
     const { data, error } = await admin
       .from('committee_members')
-      .select('id,full_name,role,email,batch,phone_number,photo_path,sort_order,published')
+      .select('id,full_name,role,email,batch,phone_number,bio,photo_path,sort_order,published')
       .order('sort_order', { ascending: true })
       .order('full_name', { ascending: true });
 
@@ -34,6 +34,7 @@ export async function GET() {
           email: row.email,
           batch: row.batch,
           phone_number: row.phone_number,
+          bio: row.bio || null,
           sort_order: row.sort_order,
           photo_url,
         };

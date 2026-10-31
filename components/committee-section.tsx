@@ -63,7 +63,10 @@ export default function CommitteeSection() {
                 {m.role}
               </p>
               <p className="text-body-md text-primary font-semibold">{m.full_name}</p>
-              <p className="text-body-sm text-on-surface-variant">Batch {m.batch}</p>
+              {m.bio ? (
+                <p className="text-body-sm text-on-surface-variant mt-1 leading-snug">{m.bio}</p>
+              ) : null}
+              <p className="text-body-sm text-on-surface-variant mt-1">Batch {m.batch}</p>
               <a
                 href={`mailto:${m.email}`}
                 className="text-body-sm text-primary hover:underline break-all"

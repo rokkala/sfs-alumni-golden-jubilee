@@ -37,6 +37,7 @@ async function updateMember(request: Request, id: string) {
       email: form.get('email'),
       batch: form.get('batch'),
       phone_number: form.get('phone_number'),
+      bio: form.get('bio'),
       sort_order: form.get('sort_order'),
       published: form.get('published'),
     };
@@ -113,7 +114,7 @@ async function updateMember(request: Request, id: string) {
     })
     .eq('id', id)
     .select(
-      'id,full_name,role,email,batch,phone_number,photo_path,sort_order,published,created_at,updated_at'
+      'id,full_name,role,email,batch,phone_number,bio,photo_path,sort_order,published,created_at,updated_at'
     )
     .single();
 

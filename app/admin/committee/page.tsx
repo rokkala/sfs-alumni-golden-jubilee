@@ -10,6 +10,7 @@ type Member = {
   email: string;
   batch: number;
   phone_number: string | null;
+  bio: string | null;
   photo_url: string | null;
   sort_order: number;
   published: boolean;
@@ -21,6 +22,7 @@ const emptyForm = {
   email: '',
   batch: '',
   phone_number: '',
+  bio: '',
   sort_order: '0',
   published: true,
 };
@@ -62,6 +64,7 @@ export default function AdminCommitteePage() {
       email: m.email,
       batch: String(m.batch),
       phone_number: m.phone_number || '',
+      bio: m.bio || '',
       sort_order: String(m.sort_order),
       published: m.published,
     });
@@ -100,6 +103,7 @@ export default function AdminCommitteePage() {
         body.set('email', form.email);
         body.set('batch', form.batch);
         body.set('phone_number', form.phone_number);
+        body.set('bio', form.bio);
         body.set('sort_order', form.sort_order);
         body.set('published', form.published ? 'true' : 'false');
         if (photo) body.set('photo', photo);
@@ -123,6 +127,7 @@ export default function AdminCommitteePage() {
         body.set('email', form.email);
         body.set('batch', form.batch);
         body.set('phone_number', form.phone_number);
+        body.set('bio', form.bio);
         body.set('sort_order', form.sort_order);
         body.set('published', form.published ? 'true' : 'false');
         res = await fetch(url, { method: 'POST', body });
@@ -252,19 +257,50 @@ export default function AdminCommitteePage() {
               disabled={busy}
             />
           </Field>
-          <Field label="Photo" htmlFor="cm-photo">
+          <Field label="Short bio (optional)" htmlFor="cm-bio">
+            <textarea
+              id="cm-bio"
+              rows={3}
+              maxLength={280}
+              value={form.bio}
+              onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+              className={`${inputClass} resize-y min-h-[5rem]`}
+              disabled={busy}
+              placeholder="One or two lines about this officer"
+            />
+            <p className="text-body-sm text-on-surface-variant mt-1">
+              {form.bio.length}/280
+            </p>
+          </Field>
+          <div>
+            <span className="text-label-sm uppercase tracking-wider text-primary block mb-1">
+              Photo
+            </span>
             <input
               id="cm-photo"
               type="file"
               accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              disabled={busy}
               onChange={(e) => {
                 setPhoto(e.target.files?.[0] || null);
                 setClearPhoto(false);
               }}
-              disabled={busy}
-              className="text-body-sm"
             />
-          </Field>
+            <div className="flex flex-wrap items-center gap-2">
+              <label
+                htmlFor="cm-photo"
+                className={`inline-flex items-center justify-center rounded-lg border border-outline-variant bg-white px-4 py-2.5 text-label-sm font-bold uppercase tracking-wider text-primary cursor-pointer hover:bg-surface-container ${
+                  busy ? 'opacity-50 pointer-events-none' : ''
+                }`}
+              >
+                {photo || editingId ? 'Replace photo' : 'Upload photo'}
+              </label>
+              <span className="text-body-sm text-on-surface-variant truncate max-w-[14rem]">
+                {photo ? photo.name : 'JPEG, PNG, or WebP · max 4 MB'}
+              </span>
+            </div>
+          </div>
           {editingId && (
             <label className="flex items-center gap-2 text-body-sm text-on-surface-variant">
               <input
@@ -350,6 +386,11 @@ export default function AdminCommitteePage() {
                       )}
                     </p>
                     <p className="text-body-md text-primary font-semibold">{m.full_name}</p>
+                    {m.bio ? (
+                      <p className="text-body-sm text-on-surface-variant mt-0.5 line-clamp-2">
+                        {m.bio}
+                      </p>
+                    ) : null}
                     <p className="text-body-sm text-on-surface-variant truncate">
                       Batch {m.batch} · {m.email}
                       {m.phone_number ? ` · ${m.phone_number}` : ''}

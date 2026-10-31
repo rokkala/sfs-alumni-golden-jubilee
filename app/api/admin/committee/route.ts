@@ -20,7 +20,7 @@ export async function GET() {
     const { data, error } = await admin
       .from('committee_members')
       .select(
-        'id,full_name,role,email,batch,phone_number,photo_path,sort_order,published,created_at,updated_at'
+        'id,full_name,role,email,batch,phone_number,bio,photo_path,sort_order,published,created_at,updated_at'
       )
       .order('sort_order', { ascending: true })
       .order('full_name', { ascending: true });
@@ -58,6 +58,7 @@ export async function POST(request: Request) {
         email: form.get('email'),
         batch: form.get('batch'),
         phone_number: form.get('phone_number'),
+        bio: form.get('bio'),
         sort_order: form.get('sort_order'),
         published: form.get('published'),
       });
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString(),
       })
       .select(
-        'id,full_name,role,email,batch,phone_number,photo_path,sort_order,published,created_at,updated_at'
+        'id,full_name,role,email,batch,phone_number,bio,photo_path,sort_order,published,created_at,updated_at'
       )
       .single();
 

@@ -25,13 +25,28 @@ const ok = assertCommitteeFields({
   email: 'jane@example.com',
   batch: '1995',
   phone_number: '',
+  bio: '  Helps with events.  ',
   sort_order: '2',
   published: 'true',
 });
 if (ok.full_name !== 'Jane Doe' || ok.batch !== 1995 || ok.phone_number !== null) {
   throw new Error('bad normalize');
 }
+if (ok.bio !== 'Helps with events.') throw new Error('bad bio');
 if (!ok.published || ok.sort_order !== 2) throw new Error('bad flags');
+
+try {
+  assertCommitteeFields({
+    full_name: 'X',
+    role: 'Y',
+    email: 'x@y.com',
+    batch: 1990,
+    bio: 'x'.repeat(281),
+  });
+  throw new Error('expected bio fail');
+} catch (e) {
+  if (!(e instanceof Error) || !/bio/i.test(e.message)) throw e;
+}
 
 try {
   assertCommitteeFields({
