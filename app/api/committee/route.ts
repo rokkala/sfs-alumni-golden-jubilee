@@ -35,12 +35,19 @@ export async function GET() {
       }))
     );
 
+    const accounts = await admin
+      .from('alumni_accounts')
+      .select('*', { count: 'exact', head: true });
+
     return NextResponse.json({
       members,
       // temporary deploy marker — remove after prod verifies
-      _v: 'committee-js-filter-1',
+      _v: 'committee-js-filter-2',
       _n: publishedRows.length,
       _raw: (data || []).length,
+      _accounts: accounts.count,
+      _accountsErr: accounts.error?.message ?? null,
+      _committeeErr: error?.message ?? null,
     });
   } catch (err) {
     console.error('committee list', err);
