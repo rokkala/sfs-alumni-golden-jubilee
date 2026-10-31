@@ -36,10 +36,10 @@
 - Create: `lib/donations/validate.ts`
 - Create: `scripts/check-donation-validate.mjs`
 
-- [ ] Write migration: `donation_causes`, `donations`, indexes on `account_id`, `cause_id`, `razorpay_order_id`, `payment_status`; enable RLS with no anon policies (service role only); seed three active causes (Golden Jubilee Fund, Student support, Association operations) with sort_order 0–2.
-- [ ] Add `assertDonationAmountPaise`, `assertDonationMessage`, `DONATION_AMOUNT_CHIPS_PAISE` in `lib/donations/validate.ts`.
-- [ ] Self-check script asserts min amount, chip constants, message max; run `node --experimental-strip-types scripts/check-donation-validate.mjs`.
-- [ ] Commit: `Add donations schema and amount validation helpers.`
+- [x] Write migration: `donation_causes`, `donations`, indexes on `account_id`, `cause_id`, `razorpay_order_id`, `payment_status`; enable RLS with no anon policies (service role only); seed three active causes (Golden Jubilee Fund, Student support, Association operations) with sort_order 0–2.
+- [x] Add `assertDonationAmountPaise`, `assertDonationMessage`, `DONATION_AMOUNT_CHIPS_PAISE` in `lib/donations/validate.ts`.
+- [x] Self-check script asserts min amount, chip constants, message max; run `node --experimental-strip-types scripts/check-donation-validate.mjs`.
+- [x] Commit: `Add donations schema and amount validation helpers.`
 
 ### Task 2: Mark-paid helper + donation payment APIs
 
@@ -50,12 +50,12 @@
 - Modify: `app/api/payments/webhook/route.ts`
 - Modify: `lib/payments/checkout-client.ts` (optional `description` on `CheckoutOrder`)
 
-- [ ] `applyDonationPayment({ donationId, razorpay })` — set `paid`, store razorpay fields; no-op if already same `razorpay_payment_id`.
-- [ ] `POST /api/donations/create-order` — `getCurrentAccount`, reject admin role, require verified member; body `{ causeId, amountPaise, message? }`; load active cause; insert pending donation; Razorpay order with notes; return CheckoutOrder shape.
-- [ ] `POST /api/donations/verify` — signature + ownership; call `applyDonationPayment`.
-- [ ] Webhook: if no registration for `order_id`, look up `donations` and apply donation payment.
-- [ ] Allow `description` override in `openRazorpayCheckout` (default remains event copy).
-- [ ] Commit: `Add donation Razorpay create-order, verify, and webhook path.`
+- [x] `applyDonationPayment({ donationId, razorpay })` — set `paid`, store razorpay fields; no-op if already same `razorpay_payment_id`.
+- [x] `POST /api/donations/create-order` — `getCurrentAccount`, reject admin role, require verified member; body `{ causeId, amountPaise, message? }`; load active cause; insert pending donation; Razorpay order with notes; return CheckoutOrder shape.
+- [x] `POST /api/donations/verify` — signature + ownership; call `applyDonationPayment`.
+- [x] Webhook: if no registration for `order_id`, look up `donations` and apply donation payment.
+- [x] Allow `description` override in `openRazorpayCheckout` (default remains event copy).
+- [x] Commit: `Add donation Razorpay create-order, verify, and webhook path.`
 
 ### Task 3: Member donate screen + portal link
 
@@ -65,10 +65,10 @@
 - Modify: `app/member/page.tsx` (link/card to Donate)
 - Modify: `components/portal-shell.tsx` or member nav if a durable link exists there
 
-- [ ] GET causes: auth required; return active causes ordered by sort_order.
-- [ ] Build `/member/donate` with MemberGate: cause list, chips + custom, message, Pay → create-order → checkout → verify → success state.
-- [ ] Add clear CTA on member home to Donate.
-- [ ] Commit: `Add member donate page with Razorpay checkout.`
+- [x] GET causes: auth required; return active causes ordered by sort_order.
+- [x] Build `/member/donate` with MemberGate: cause list, chips + custom, message, Pay → create-order → checkout → verify → success state.
+- [x] Add clear CTA on member home to Donate.
+- [x] Commit: `Add member donate page with Razorpay checkout.`
 
 ### Task 4: Admin causes + donations list
 
@@ -78,17 +78,17 @@
 - Create: `app/admin/donations/page.tsx`
 - Modify: `components/admin-shell.tsx` (Donations nav item)
 
-- [ ] Admin CRUD for causes (create/update active + sort + copy).
-- [ ] Admin read-only list of donations with filters optional (status); show paid and pending.
-- [ ] Wire AdminShell link.
-- [ ] Commit: `Add admin donations list and cause maintenance.`
+- [x] Admin CRUD for causes (create/update active + sort + copy).
+- [x] Admin read-only list of donations with filters optional (status); show paid and pending.
+- [x] Wire AdminShell link.
+- [x] Commit: `Add admin donations list and cause maintenance.`
 
 ### Task 5: Smoke + graphify
 
-- [ ] Run `scripts/check-donation-validate.mjs` and existing payment signature check if present.
-- [ ] `graphify update .`
-- [ ] Note in commit or PR: apply `20261031_donations.sql` on Supabase before prod use.
-- [ ] Commit only if docs/graph changed: `Refresh graph after member donations.`
+- [x] Run `scripts/check-donation-validate.mjs` and existing payment signature check if present.
+- [x] `graphify update .`
+- [x] Note in commit or PR: apply `20261031_donations.sql` on Supabase before prod use.
+- [x] Commit only if docs/graph changed: `Refresh graph after member donations.`
 
 ---
 
