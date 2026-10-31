@@ -57,10 +57,10 @@ export default function PortalShell({
     : baseLinks;
 
   return (
-    <main className="min-h-screen bg-surface pt-24 pb-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
+    <main className="min-h-screen bg-surface pt-24 pb-16 print:pt-0 print:pb-0 print:bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 print:max-w-none print:px-0">
         <div className="flex gap-4 sm:gap-6 lg:gap-10 items-start">
-          <aside className="w-[7.25rem] sm:w-44 lg:w-52 shrink-0 sticky top-28 self-start rounded-2xl border border-outline-variant bg-surface-paper p-2.5 sm:p-4">
+          <aside className="print:hidden w-[7.25rem] sm:w-44 lg:w-52 shrink-0 sticky top-28 self-start rounded-2xl border border-outline-variant bg-surface-paper p-2.5 sm:p-4">
             <p className="text-xs sm:text-sm font-extrabold text-primary tracking-tight px-1.5 sm:px-1 leading-tight">
               SFS Alumni
             </p>
@@ -98,8 +98,8 @@ export default function PortalShell({
             </nav>
           </aside>
 
-          <div className="min-w-0 flex-1">
-            <div className="mb-5 lg:mb-6">
+          <div className="min-w-0 flex-1 print:w-full">
+            <div className="print:hidden mb-5 lg:mb-6">
               <div className="text-label-sm uppercase tracking-[0.16em] text-jubilee-gold-deep font-bold mb-2">
                 {eyebrow}
               </div>

@@ -42,7 +42,7 @@ export default function AdminShell({
     <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
       <nav
         aria-label="Admin sections"
-        className="lg:w-56 shrink-0 flex lg:flex-col gap-1.5 overflow-x-auto pb-2 lg:pb-0 lg:pr-5 lg:border-r border-outline-variant"
+        className="print:hidden lg:w-56 shrink-0 flex lg:flex-col gap-1.5 overflow-x-auto pb-2 lg:pb-0 lg:pr-5 lg:border-r border-outline-variant"
       >
         {LINKS.map((link) => {
           const active = isActive(pathname, link.href, link.match);
@@ -77,7 +77,7 @@ export default function AdminShell({
         </button>
       </nav>
       <div className="min-w-0 flex-1">
-        <div className="mb-6 border-b border-outline-variant pb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="print:hidden mb-6 border-b border-outline-variant pb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-label-sm uppercase tracking-[0.16em] text-jubilee-gold-deep font-bold mb-1">
               Committee tools

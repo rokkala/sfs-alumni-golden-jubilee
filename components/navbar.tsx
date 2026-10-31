@@ -57,7 +57,7 @@ export default function NavBar() {
     }
 
     return (
-        <header className="fixed top-0 left-0 w-full z-50 bg-surface-paper/95 backdrop-blur-sm border-b border-outline-variant">
+        <header className="print:hidden fixed top-0 left-0 w-full z-50 bg-surface-paper/95 backdrop-blur-sm border-b border-outline-variant">
             <div className="h-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between gap-4">
                 <Link
                     className="flex items-center gap-2.5 sm:gap-3.5 group text-left min-w-0 flex-1 max-w-[min(100%,28rem)] lg:max-w-none"

@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   await issueMissingPaidCodes(admin as unknown as RegistrationCodeAdmin);
 
   const columns =
-    'id,event_id,account_id,phone_number,number_of_guests,food_preference,parking_needed,lunch,dinner,guests,attending,total_cost_paise,amount_paid_paise,payment_status,created_at,event_catalog(title),alumni_accounts(full_name,email)';
+    'id,event_id,account_id,phone_number,number_of_guests,food_preference,parking_needed,lunch,dinner,guests,attending,total_cost_paise,amount_paid_paise,payment_status,created_at,event_catalog(title),alumni_accounts(full_name,email,batch)';
 
   function list(select: string) {
     let query = admin
@@ -69,7 +69,10 @@ export async function GET(request: Request) {
     registration_code?: string | null;
     created_at: string;
     event_catalog: { title: string } | { title: string }[] | null;
-    alumni_accounts: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
+    alumni_accounts:
+      | { full_name: string; email: string; batch?: number | null }
+      | { full_name: string; email: string; batch?: number | null }[]
+      | null;
   };
 
   const rows = ((data || []) as unknown as Raw[])
@@ -77,6 +80,13 @@ export async function GET(request: Request) {
       const account = Array.isArray(r.alumni_accounts) ? r.alumni_accounts[0] : r.alumni_accounts;
       const event = Array.isArray(r.event_catalog) ? r.event_catalog[0] : r.event_catalog;
       const amount_paid_paise = Math.max(0, Number(r.amount_paid_paise) || 0);
+      const batchRaw = account?.batch;
+      const batch =
+        typeof batchRaw === 'number'
+          ? batchRaw
+          : batchRaw != null && String(batchRaw).trim() !== ''
+            ? Number(batchRaw) || null
+            : null;
       return {
         id: r.id,
         event_id: r.event_id,
@@ -84,6 +94,7 @@ export async function GET(request: Request) {
         account_id: r.account_id,
         full_name: account?.full_name || '—',
         email: account?.email || '—',
+        batch,
         phone_number: r.phone_number,
         number_of_guests: r.number_of_guests,
         food_preference: r.food_preference,

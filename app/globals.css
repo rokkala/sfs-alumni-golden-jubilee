@@ -255,3 +255,47 @@ body {
     color: #ffffff;
   }
 }
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .print-roster {
+    display: block !important;
+  }
+
+  .print-roster table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+  }
+
+  .print-roster th,
+  .print-roster td {
+    border: 1px solid #333;
+    padding: 3px 6px;
+    text-align: left;
+  }
+
+  .print-roster h1 {
+    font-size: 16pt;
+    margin: 0 0 4pt;
+  }
+
+  .print-roster h2 {
+    font-size: 12pt;
+    margin: 12pt 0 4pt;
+    break-after: avoid;
+  }
+
+  .print-roster .batch-block {
+    break-inside: avoid;
+  }
+}
