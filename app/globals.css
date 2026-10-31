@@ -297,5 +297,11 @@ body {
 
   .print-roster .batch-block {
     break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-roster .batch-block + .batch-block {
+    break-before: page;
+    page-break-before: always;
   }
 }
