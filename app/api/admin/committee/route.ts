@@ -17,13 +17,43 @@ export async function GET() {
     if (!me) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const admin = createAdminClient();
-    const { data, error } = await admin
+    let { data, error } = await admin
       .from('committee_members')
       .select(
         'id,full_name,role,email,batch,phone_number,photo_path,sort_order,published,created_at,updated_at'
       )
       .order('sort_order', { ascending: true })
       .order('full_name', { ascending: true });
+
+    // Vercel service-role SELECT has been returning 0 rows while anon RLS works —
+    // fall back so admins can still load published members to edit.
+    if (!error && (data || []).length === 0) {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+      const anonKey = (
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+        ''
+      )
+        .trim()
+        .replace(/^["']|["']$/g, '');
+      if (url && anonKey) {
+        const { createClient } = await import('@supabase/supabase-js');
+        const anon = createClient(url, anonKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+        const anonRes = await anon
+          .from('committee_members')
+          .select(
+            'id,full_name,role,email,batch,phone_number,photo_path,sort_order,published,created_at,updated_at'
+          )
+          .order('sort_order', { ascending: true })
+          .order('full_name', { ascending: true });
+        if (!anonRes.error && (anonRes.data || []).length > 0) {
+          data = anonRes.data;
+          error = null;
+        }
+      }
+    }
 
     if (error) {
       console.error('admin committee list', error);
