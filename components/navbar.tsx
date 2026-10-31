@@ -5,10 +5,12 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import AssociationModal from '@/components/association-modal';
+
 export default function NavBar() {
     const [user, setUser] = useState<{ email: string; isAdmin: boolean } | null>(null);
-    const [loading, setLoading] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [associationOpen, setAssociationOpen] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
     const onPortal =
@@ -38,8 +40,6 @@ export default function NavBar() {
                 }
             } catch {
                 if (active) setUser(null);
-            } finally {
-                if (active) setLoading(false);
             }
         }
         void checkAuth();
@@ -60,7 +60,7 @@ export default function NavBar() {
         <header className="fixed top-0 left-0 w-full z-50 bg-surface-paper/95 backdrop-blur-sm border-b border-outline-variant">
             <div className="h-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between gap-4">
                 <Link
-                    className="flex items-center gap-2.5 sm:gap-3.5 group text-left min-w-0"
+                    className="flex items-center gap-2.5 sm:gap-3.5 group text-left min-w-0 flex-1 max-w-[min(100%,28rem)] lg:max-w-none"
                     href="/"
                 >
                     <div className="relative flex-shrink-0">
@@ -87,32 +87,49 @@ export default function NavBar() {
                 </Link>
 
                 <div
-                    className={`${onPortal ? 'flex' : 'hidden md:flex'} items-center gap-2 lg:gap-3 shrink-0`}
+                    className={`${onPortal ? 'flex' : 'hidden md:flex'} items-center gap-1.5 lg:gap-2 shrink-0 ml-auto`}
                 >
-                    {!loading && !user && (
+                    {/* Show guest actions immediately — don't wait on /api/auth/me */}
+                    {!user && (
                         <>
                             <Link
                                 href="/login"
-                                className="inline-flex items-center justify-center px-3 py-2 rounded-lg text-label-md uppercase tracking-wider text-primary hover:bg-surface-container transition-colors"
+                                className="inline-flex items-center justify-center px-2.5 lg:px-3 py-2 rounded-lg text-label-md uppercase tracking-wider text-primary hover:bg-surface-container transition-colors whitespace-nowrap"
                             >
                                 Login
                             </Link>
+                            <button
+                                type="button"
+                                onClick={() => setAssociationOpen(true)}
+                                className="inline-flex items-center justify-center px-2.5 lg:px-3 py-2 rounded-lg text-label-md uppercase tracking-wider text-primary hover:bg-surface-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 whitespace-nowrap"
+                            >
+                                Association
+                            </button>
                             <Link
                                 href="/signup"
-                                className="inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-label-md uppercase tracking-wider bg-primary text-on-primary hover:bg-navy-subtle shadow-sm transition-all"
+                                className="inline-flex items-center justify-center px-3 lg:px-3.5 py-2 rounded-lg text-label-md uppercase tracking-wider bg-primary text-on-primary hover:bg-navy-subtle shadow-sm transition-all whitespace-nowrap"
                             >
                                 Sign Up
                             </Link>
                         </>
                     )}
 
-                    {!loading && user && (
+                    {user && (
                         <>
+                            {!onPortal && (
+                                <button
+                                    type="button"
+                                    onClick={() => setAssociationOpen(true)}
+                                    className="inline-flex items-center justify-center px-2.5 lg:px-3 py-2 rounded-lg text-label-md uppercase tracking-wider text-primary hover:bg-surface-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 whitespace-nowrap"
+                                >
+                                    Association
+                                </button>
+                            )}
                             {!onPortal && <div className="h-5 w-px bg-outline-variant" />}
                             {!onPortal && !user.isAdmin && (
                                 <Link
                                     href="/member"
-                                    className="inline-flex items-center justify-center px-3 py-2 rounded-lg text-label-md uppercase tracking-wider text-primary hover:bg-surface-container transition-colors"
+                                    className="inline-flex items-center justify-center px-2.5 lg:px-3 py-2 rounded-lg text-label-md uppercase tracking-wider text-primary hover:bg-surface-container transition-colors whitespace-nowrap"
                                 >
                                     Alumni Portal
                                 </Link>
@@ -120,13 +137,13 @@ export default function NavBar() {
                             {!onPortal && user.isAdmin && (
                                 <Link
                                     href="/admin"
-                                    className="inline-flex items-center justify-center px-3 py-2 rounded-lg text-label-md uppercase tracking-wider bg-primary text-on-primary hover:bg-navy-subtle shadow-sm transition-all"
+                                    className="inline-flex items-center justify-center px-2.5 lg:px-3 py-2 rounded-lg text-label-md uppercase tracking-wider bg-primary text-on-primary hover:bg-navy-subtle shadow-sm transition-all whitespace-nowrap"
                                 >
                                     Admin
                                 </Link>
                             )}
                             <span
-                                className="hidden lg:inline text-label-sm text-on-surface-variant px-2 max-w-[140px] truncate"
+                                className="hidden xl:inline text-label-sm text-on-surface-variant px-2 max-w-[120px] truncate"
                                 title={user.email}
                             >
                                 {user.email}
@@ -134,7 +151,7 @@ export default function NavBar() {
                             <button
                                 type="button"
                                 onClick={() => void handleLogout()}
-                                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-label-md uppercase tracking-wider text-error border border-error/30 hover:bg-error-container transition-colors cursor-pointer"
+                                className="inline-flex items-center justify-center gap-1.5 px-2.5 lg:px-3 py-2 rounded-lg text-label-md uppercase tracking-wider text-error border border-error/30 hover:bg-error-container transition-colors cursor-pointer whitespace-nowrap"
                                 title="Logout"
                             >
                                 <span className="material-symbols-outlined text-[18px]">logout</span>
@@ -161,7 +178,7 @@ export default function NavBar() {
 
             {!onPortal && mobileMenuOpen && (
                 <div className="md:hidden absolute top-20 left-0 w-full bg-white border-b border-outline-variant shadow-lg py-4 px-6 flex flex-col gap-3 transition-all">
-                    {!loading && !user && (
+                    {!user && (
                         <div className="flex flex-col gap-2">
                             <Link
                                 href="/login"
@@ -170,6 +187,16 @@ export default function NavBar() {
                             >
                                 Login
                             </Link>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMobileMenuOpen(false);
+                                    setAssociationOpen(true);
+                                }}
+                                className="w-full inline-flex items-center justify-center px-3 py-2.5 rounded-lg text-label-md uppercase tracking-wider text-primary hover:bg-surface-container transition-colors"
+                            >
+                                Association
+                            </button>
                             <Link
                                 href="/signup"
                                 onClick={() => setMobileMenuOpen(false)}
@@ -179,8 +206,18 @@ export default function NavBar() {
                             </Link>
                         </div>
                     )}
-                    {!loading && user && (
+                    {user && (
                         <div className="flex flex-col gap-2 text-center">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMobileMenuOpen(false);
+                                    setAssociationOpen(true);
+                                }}
+                                className="w-full inline-flex items-center justify-center px-3 py-2.5 rounded-lg text-label-md uppercase tracking-wider text-primary hover:bg-surface-container transition-colors"
+                            >
+                                Association
+                            </button>
                             {!user.isAdmin && (
                                 <Link
                                     href="/member"
@@ -214,6 +251,8 @@ export default function NavBar() {
                     )}
                 </div>
             )}
+
+            <AssociationModal open={associationOpen} onClose={() => setAssociationOpen(false)} />
         </header>
     );
 }

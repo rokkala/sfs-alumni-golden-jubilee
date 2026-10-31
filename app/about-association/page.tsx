@@ -31,14 +31,9 @@ export default function AssociationPage() {
             A school legacy carried forward by students, teachers, families and alumni across
             generations.
           </p>
-          <p className="text-body-sm text-white/80 mt-7 pt-5 border-t border-white/20">
-            Meet the current committee below — names, roles, and how to reach them.
-          </p>
         </section>
       </div>
-      <div className="mt-10">
-        <CommitteeSection variant="about" />
-      </div>
+      <CommitteeSection />
     </PortalShell>
   );
 }

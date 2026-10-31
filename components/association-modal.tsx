@@ -1,0 +1,175 @@
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useId, useRef, useState } from 'react';
+
+export type PublicCommitteeMember = {
+  id: string;
+  full_name: string;
+  role: string;
+  email: string;
+  batch: number;
+  phone_number: string | null;
+  photo_url: string | null;
+};
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+export default function AssociationModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const titleId = useId();
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const [members, setMembers] = useState<PublicCommitteeMember[] | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    setMembers(null);
+    (async () => {
+      try {
+        const res = await fetch('/api/committee', { cache: 'no-store' });
+        const payload = await res.json().catch(() => ({}));
+        if (!active) return;
+        setMembers(res.ok && Array.isArray(payload.members) ? payload.members : []);
+      } catch {
+        if (active) setMembers([]);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeRef.current?.focus();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-6">
+      <button
+        type="button"
+        className="absolute inset-0 bg-primary/50 backdrop-blur-[2px] cursor-pointer"
+        aria-label="Close association dialog"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative z-[81] w-full sm:max-w-lg max-h-[90vh] overflow-hidden rounded-t-2xl sm:rounded-2xl bg-surface-paper border border-outline-variant shadow-xl flex flex-col"
+      >
+        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-outline-variant">
+          <div>
+            <p className="text-label-sm uppercase tracking-widest text-jubilee-gold-deep font-bold">
+              SFS Alumni
+            </p>
+            <h2 id={titleId} className="text-headline-sm text-primary mt-1">
+              Association & committee
+            </h2>
+            <p className="text-body-sm text-on-surface-variant mt-2">
+              The alumni association connects generations of SFS Shanthinagar. Reach the committee
+              below for membership or events.
+            </p>
+          </div>
+          <button
+            ref={closeRef}
+            type="button"
+            onClick={onClose}
+            className="shrink-0 p-2 rounded-lg text-primary hover:bg-surface-container focus:outline-none focus:ring-2 focus:ring-primary/30"
+            aria-label="Close"
+          >
+            <span className="material-symbols-outlined text-[22px]">close</span>
+          </button>
+        </div>
+
+        <div className="overflow-y-auto px-5 py-4 flex-1">
+          {members === null && (
+            <p className="text-body-sm text-on-surface-variant py-6 text-center">Loading…</p>
+          )}
+          {members && !members.length && (
+            <p className="text-body-sm text-on-surface-variant py-6 text-center">
+              Committee contacts will appear here once published.
+            </p>
+          )}
+          {members && members.length > 0 && (
+            <ul className="divide-y divide-outline-variant">
+              {members.map((m) => (
+                <li key={m.id} className="py-3.5 flex gap-3 items-start">
+                  {m.photo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={m.photo_url}
+                      alt=""
+                      className="w-11 h-11 rounded-full object-cover shrink-0 bg-primary/5"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-11 h-11 rounded-full bg-primary/10 text-primary text-label-sm font-bold grid place-items-center shrink-0">
+                      {initials(m.full_name)}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-label-sm uppercase tracking-wider text-jubilee-gold-deep font-bold">
+                      {m.role}
+                    </p>
+                    <p className="text-body-md text-primary font-semibold leading-snug">
+                      {m.full_name}
+                    </p>
+                    <p className="text-body-sm text-on-surface-variant">Batch {m.batch}</p>
+                    <a
+                      href={`mailto:${m.email}`}
+                      className="block text-body-sm text-primary hover:underline underline-offset-2 break-all mt-1 focus:outline-none focus:ring-2 focus:ring-primary/30 rounded"
+                    >
+                      {m.email}
+                    </a>
+                    {m.phone_number ? (
+                      <a
+                        href={`tel:${m.phone_number}`}
+                        className="block text-body-sm text-on-surface-variant hover:text-primary mt-0.5 focus:outline-none focus:ring-2 focus:ring-primary/30 rounded"
+                      >
+                        {m.phone_number}
+                      </a>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="px-5 py-4 border-t border-outline-variant bg-surface-container-low/40">
+          <Link
+            href="/about-association"
+            onClick={onClose}
+            className="text-label-sm uppercase tracking-wider text-primary font-bold hover:underline underline-offset-2 focus:outline-none focus:ring-2 focus:ring-primary/30 rounded"
+          >
+            About the association →
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}

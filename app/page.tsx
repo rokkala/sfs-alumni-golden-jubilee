@@ -1,7 +1,6 @@
 // app/page.tsx
 'use client';
 
-import CommitteeSection from '@/components/committee-section';
 import Hero from '@/components/hero';
 import Link from 'next/link';
 
@@ -246,7 +245,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        <CommitteeSection variant="landing" />
       </main>
 
       {/* FOOTER */}
