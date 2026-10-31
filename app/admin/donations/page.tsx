@@ -112,7 +112,7 @@ export default function AdminDonationsPage() {
         setError(payload.error || 'Save failed');
         return;
       }
-      setOk(editingId ? 'Cause updated.' : 'Cause added.');
+      setOk(editingId ? 'Donation type updated.' : 'Donation type added.');
       startCreate();
       await loadCauses();
     } catch {
@@ -125,85 +125,109 @@ export default function AdminDonationsPage() {
   return (
     <AdminShell title="Donations">
       <p className="text-body-sm text-on-surface-variant mb-6 max-w-2xl">
-        Manage donation causes shown in the member portal and review Razorpay gifts.
+        Set up <strong>donation types</strong> (what members can give to), then track gifts that
+        come in through Razorpay.
       </p>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
-        <form
-          onSubmit={onSaveCause}
-          className="rounded-2xl border border-outline-variant bg-white p-5 space-y-3 h-fit"
-        >
-          <h3 className="text-headline-sm text-primary">
-            {editingId ? 'Edit cause' : 'Add cause'}
-          </h3>
-          <label className="block">
-            <span className="text-label-sm uppercase tracking-wider text-primary">Title</span>
-            <input
-              required
-              value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              disabled={busy}
-              className="mt-1 w-full px-3 py-2.5 rounded-lg border border-outline-variant text-body-sm"
-            />
-          </label>
-          <label className="block">
-            <span className="text-label-sm uppercase tracking-wider text-primary">Description</span>
-            <textarea
-              rows={3}
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              disabled={busy}
-              className="mt-1 w-full px-3 py-2.5 rounded-lg border border-outline-variant text-body-sm resize-y"
-            />
-          </label>
-          <label className="block">
-            <span className="text-label-sm uppercase tracking-wider text-primary">Sort order</span>
-            <input
-              inputMode="numeric"
-              value={form.sort_order}
-              onChange={(e) => setForm((f) => ({ ...f, sort_order: e.target.value }))}
-              disabled={busy}
-              className="mt-1 w-full px-3 py-2.5 rounded-lg border border-outline-variant text-body-sm"
-            />
-          </label>
-          <label className="flex items-center gap-2 text-body-sm text-primary font-medium">
-            <input
-              type="checkbox"
-              checked={form.active}
-              onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
-              disabled={busy}
-            />
-            Active (visible to members)
-          </label>
-          {error ? (
-            <p className="rounded-lg bg-error-container text-error text-body-sm p-3">{error}</p>
-          ) : null}
-          {ok ? (
-            <p className="rounded-lg bg-secondary-container text-on-secondary-fixed text-body-sm p-3">
-              {ok}
+        <section className="rounded-2xl border border-outline-variant bg-white p-5 space-y-4 h-fit">
+          <div>
+            <h3 className="text-headline-sm text-primary">Donation types</h3>
+            <p className="text-body-sm text-on-surface-variant mt-1">
+              Add each fund or purpose here. Active types show on{' '}
+              <code className="text-label-sm">/member/donate</code>. Turn Active off to hide one
+              without deleting history.
             </p>
-          ) : null}
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={busy}
-              className="rounded-lg bg-primary text-on-primary px-4 py-2.5 text-label-sm font-bold uppercase tracking-wider disabled:opacity-50"
-            >
-              {busy ? 'Saving…' : editingId ? 'Save cause' : 'Add cause'}
-            </button>
-            {editingId ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={startCreate}
-                className="rounded-lg border border-outline-variant px-4 py-2.5 text-label-sm uppercase tracking-wider"
-              >
-                Cancel
-              </button>
-            ) : null}
           </div>
 
+          <form onSubmit={onSaveCause} className="space-y-3">
+            <h4 className="text-label-md text-primary uppercase tracking-wider">
+              {editingId ? 'Edit type' : 'Add type'}
+            </h4>
+            <label className="block">
+              <span className="text-label-sm uppercase tracking-wider text-primary">Name</span>
+              <input
+                required
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                disabled={busy}
+                placeholder="e.g. Scholarship fund"
+                className="mt-1 w-full px-3 py-2.5 rounded-lg border border-outline-variant text-body-sm"
+              />
+            </label>
+            <label className="block">
+              <span className="text-label-sm uppercase tracking-wider text-primary">
+                Short description
+              </span>
+              <textarea
+                rows={3}
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                disabled={busy}
+                placeholder="Shown under the name when alumni choose where to give"
+                className="mt-1 w-full px-3 py-2.5 rounded-lg border border-outline-variant text-body-sm resize-y"
+              />
+            </label>
+            <label className="block">
+              <span className="text-label-sm uppercase tracking-wider text-primary">
+                Display order
+              </span>
+              <input
+                inputMode="numeric"
+                value={form.sort_order}
+                onChange={(e) => setForm((f) => ({ ...f, sort_order: e.target.value }))}
+                disabled={busy}
+                className="mt-1 w-full px-3 py-2.5 rounded-lg border border-outline-variant text-body-sm"
+              />
+              <span className="text-body-sm text-on-surface-variant">Lower numbers appear first.</span>
+            </label>
+            <label className="flex items-center gap-2 text-body-sm text-primary font-medium">
+              <input
+                type="checkbox"
+                checked={form.active}
+                onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
+                disabled={busy}
+              />
+              Active (members can select this type)
+            </label>
+            {error ? (
+              <p className="rounded-lg bg-error-container text-error text-body-sm p-3">{error}</p>
+            ) : null}
+            {ok ? (
+              <p className="rounded-lg bg-secondary-container text-on-secondary-fixed text-body-sm p-3">
+                {ok}
+              </p>
+            ) : null}
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={busy}
+                className="rounded-lg bg-primary text-on-primary px-4 py-2.5 text-label-sm font-bold uppercase tracking-wider disabled:opacity-50"
+              >
+                {busy ? 'Saving…' : editingId ? 'Save type' : 'Add type'}
+              </button>
+              {editingId ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={startCreate}
+                  className="rounded-lg border border-outline-variant px-4 py-2.5 text-label-sm uppercase tracking-wider"
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </div>
+          </form>
+
           <ul className="pt-4 space-y-2 border-t border-outline-variant">
+            <li className="text-label-sm uppercase tracking-wider text-on-surface-variant pb-1">
+              Current types ({causes.length})
+            </li>
+            {!causes.length ? (
+              <li className="text-body-sm text-on-surface-variant py-2">
+                No types yet — add the first one above.
+              </li>
+            ) : null}
             {causes.map((c) => (
               <li
                 key={c.id}
@@ -230,11 +254,11 @@ export default function AdminDonationsPage() {
               </li>
             ))}
           </ul>
-        </form>
+        </section>
 
         <div>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-            <h3 className="text-headline-sm text-primary">Gifts ({donations.length})</h3>
+            <h3 className="text-headline-sm text-primary">Received gifts ({donations.length})</h3>
             <div className="flex gap-1">
               {(['all', 'paid', 'pending', 'failed'] as const).map((s) => (
                 <button
