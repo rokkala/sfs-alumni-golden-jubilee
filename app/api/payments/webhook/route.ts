@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { applyDonationPayment } from '@/lib/donations/mark-paid';
 import { applyRegistrationPayment } from '@/lib/events/mark-paid';
 import { verifyWebhookSignature } from '@/lib/payments/razorpay';
 import { createAdminClient } from '@/lib/supabase-admin';
@@ -49,19 +50,36 @@ export async function POST(request: Request) {
     .eq('razorpay_order_id', orderId)
     .maybeSingle();
 
-  if (!reg) {
+  if (reg) {
+    await applyRegistrationPayment({
+      registrationId: reg.id,
+      paymentPaise: amount || undefined,
+      settleFull: !amount,
+      razorpay: {
+        order_id: orderId,
+        payment_id: paymentId || null,
+      },
+    });
+    return NextResponse.json({ ok: true, kind: 'registration' });
+  }
+
+  const { data: donation } = await admin
+    .from('donations')
+    .select('id')
+    .eq('razorpay_order_id', orderId)
+    .maybeSingle();
+
+  if (!donation) {
     return NextResponse.json({ ok: true, unmatched: true });
   }
 
-  await applyRegistrationPayment({
-    registrationId: reg.id,
-    paymentPaise: amount || undefined,
-    settleFull: !amount,
+  await applyDonationPayment({
+    donationId: donation.id,
     razorpay: {
       order_id: orderId,
       payment_id: paymentId || null,
     },
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, kind: 'donation' });
 }

@@ -8,6 +8,7 @@ export type CheckoutOrder = {
   name?: string | null;
   email?: string | null;
   contact?: string | null;
+  description?: string | null;
 };
 
 type RazorpayHandlerResponse = {
@@ -78,7 +79,7 @@ export async function openRazorpayCheckout(order: CheckoutOrder): Promise<OpenCh
       amount: order.amount,
       currency: order.currency,
       name: 'SFS Alumni',
-      description: 'Event registration',
+      description: order.description || 'Event registration',
       order_id: order.orderId,
       prefill: {
         name: order.name || '',
