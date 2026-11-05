@@ -10,6 +10,7 @@ import RegistrationQr from '@/components/registration-qr';
 import EventPushOptIn from '@/components/event-push-opt-in';
 import RefundEmailCta from '@/components/refund-email-cta';
 import BackHomeLink from '@/components/back-home-link';
+import AmountWithFx from '@/components/amount-with-fx';
 import SearchableSelect from '@/components/searchable-select';
 import { COUNTRIES } from '@/lib/countries';
 import {
@@ -1443,11 +1444,13 @@ function RegistrationPageInner() {
                                         {formatCostForDisplay(amountPaid)}
                                     </span>
                                 </div>
-                                <div className="flex justify-between items-center border-t border-outline-variant pt-3">
-                                    <span className="text-headline-sm text-primary">Due now</span>
-                                    <span className="text-headline-md text-jubilee-gold-deep tabular-nums">
-                                        {formatCostForDisplay(liveDue)}
-                                    </span>
+                                <div className="flex justify-between items-start gap-4 border-t border-outline-variant pt-3">
+                                    <span className="text-headline-sm text-primary pt-1">Due now</span>
+                                    <AmountWithFx
+                                        paise={liveDue}
+                                        className="text-right"
+                                        primaryClassName="text-headline-md text-jubilee-gold-deep tabular-nums"
+                                    />
                                 </div>
                                 <p className="text-label-sm text-on-surface-variant">{costBreakdown.details}</p>
                                 <RefundEmailCta
@@ -1657,13 +1660,15 @@ function RegistrationPageInner() {
                                 <span className="text-on-surface-variant">Paid</span>
                                 <span className="tabular-nums">{formatCostForDisplay(amountPaid)}</span>
                             </div>
-                            <div className="flex justify-between items-baseline border-t border-outline-variant pt-2">
-                                <span className="text-label-md text-primary uppercase tracking-wider">
+                            <div className="flex justify-between items-start gap-4 border-t border-outline-variant pt-2">
+                                <span className="text-label-md text-primary uppercase tracking-wider pt-2">
                                     Due
                                 </span>
-                                <span className="text-display-xl text-jubilee-gold-deep tabular-nums">
-                                    {formatCostForDisplay(liveDue)}
-                                </span>
+                                <AmountWithFx
+                                    paise={liveDue}
+                                    className="text-right"
+                                    primaryClassName="text-display-xl text-jubilee-gold-deep tabular-nums"
+                                />
                             </div>
                             <p className="text-label-sm text-on-surface-variant">{costBreakdown.details}</p>
                             <RefundEmailCta

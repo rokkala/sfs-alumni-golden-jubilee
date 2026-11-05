@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
+import AmountWithFx from '@/components/amount-with-fx';
 import DonationThanksModal from '@/components/donation-thanks-modal';
 import MemberGate from '@/components/member-gate';
 import PortalShell from '@/components/portal-shell';
@@ -319,6 +320,16 @@ export default function MemberDonatePage() {
 
             {error ? (
               <p className="rounded-lg bg-error-container text-error text-body-sm p-3">{error}</p>
+            ) : null}
+
+            {canPay && payableAmount != null ? (
+              <div className="rounded-xl border border-outline-variant bg-surface-container-low px-4 py-3">
+                <p className="text-label-sm uppercase tracking-wider text-primary mb-2">You pay</p>
+                <AmountWithFx
+                  paise={payableAmount}
+                  primaryClassName="text-headline-sm text-jubilee-gold-deep tabular-nums"
+                />
+              </div>
             ) : null}
 
             <button
