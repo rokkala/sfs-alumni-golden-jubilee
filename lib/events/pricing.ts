@@ -13,6 +13,8 @@ export function eventToPricing(event: Pick<
     EventCatalog,
     | 'lunch_nonveg_paise'
     | 'dinner_nonveg_paise'
+    | 'lunch_provided'
+    | 'dinner_provided'
     | 'guest_fee_paise'
     | 'fee_batch_from'
     | 'fee_batch_to'
@@ -24,6 +26,8 @@ export function eventToPricing(event: Pick<
     dinner_paise: event.dinner_paise,
     lunch_nonveg_paise: event.lunch_nonveg_paise,
     dinner_nonveg_paise: event.dinner_nonveg_paise,
+    lunch_provided: event.lunch_provided,
+    dinner_provided: event.dinner_provided,
     parking_2w_paise: event.parking_2w_paise,
     parking_4w_paise: event.parking_4w_paise,
     base_ticket_paise: event.base_ticket_paise,
@@ -47,23 +51,52 @@ function rupees(paise: number | null | undefined) {
   return ((paise || 0) / 100).toFixed(0);
 }
 
-/**
- * Lunch and dinner are always offered for headcount (₹0 = free, still selectable).
- * Args kept for call-site compatibility.
- */
-export function mealIsOffered(
-  _vegPaise?: number,
-  _nonvegPaise?: number | null
-): boolean {
-  return true;
+function mealHasRate(vegPaise?: number, nonvegPaise?: number | null): boolean {
+  const veg = Math.max(0, Number(vegPaise) || 0);
+  const non =
+    nonvegPaise == null || !Number.isFinite(Number(nonvegPaise))
+      ? 0
+      : Math.max(0, Number(nonvegPaise));
+  return veg > 0 || non > 0;
 }
 
-/** Normalize guest meal choices (meals stay selectable even when priced at ₹0). */
+/**
+ * Meal options show when provided.
+ * Pre-migration (provided unset): fall back to “any rate > 0”.
+ */
+export function mealIsOffered(
+  provided?: boolean | null,
+  vegPaise?: number,
+  nonvegPaise?: number | null
+): boolean {
+  if (provided === true) return true;
+  if (provided === false) return false;
+  return mealHasRate(vegPaise, nonvegPaise);
+}
+
+/** Clear lunch/dinner flags for meals that are not provided. */
 export function clampGuestMealsToPricing(
-  _pricing: EventPricing,
+  pricing: EventPricing,
   guests: GuestChoice[]
 ): GuestChoice[] {
-  return guests.map((g) => normalizeGuest(g));
+  const lunch = mealIsOffered(
+    pricing.lunch_provided,
+    pricing.lunch_paise,
+    pricing.lunch_nonveg_paise
+  );
+  const dinner = mealIsOffered(
+    pricing.dinner_provided,
+    pricing.dinner_paise,
+    pricing.dinner_nonveg_paise
+  );
+  return guests.map((g) => {
+    const n = normalizeGuest(g);
+    return {
+      ...n,
+      lunch: lunch && n.lunch,
+      dinner: dinner && n.dinner,
+    };
+  });
 }
 
 function mealRateLine(
@@ -76,17 +109,21 @@ function mealRateLine(
     nonvegPaise == null || !Number.isFinite(Number(nonvegPaise))
       ? veg
       : Math.max(0, Number(nonvegPaise));
-  if (veg === 0 && non === 0) return `${name} Free`;
+  if (veg === 0 && non === 0) return name;
   if (non === veg) return `${name} ₹${rupees(veg)} / person`;
   return `${name} veg ₹${rupees(veg)} · non-veg ₹${rupees(non)} / person`;
 }
 
-/** One line of meal rates (includes Free when priced at ₹0). */
+/** One line of meal rates for provided meals (omits amount when ₹0). */
 export function mealPriceSummary(event: EventPricing): string {
-  return [
-    mealRateLine('Lunch', event.lunch_paise, event.lunch_nonveg_paise),
-    mealRateLine('Dinner', event.dinner_paise, event.dinner_nonveg_paise),
-  ].join(' · ');
+  const bits: string[] = [];
+  if (mealIsOffered(event.lunch_provided, event.lunch_paise, event.lunch_nonveg_paise)) {
+    bits.push(mealRateLine('Lunch', event.lunch_paise, event.lunch_nonveg_paise));
+  }
+  if (mealIsOffered(event.dinner_provided, event.dinner_paise, event.dinner_nonveg_paise)) {
+    bits.push(mealRateLine('Dinner', event.dinner_paise, event.dinner_nonveg_paise));
+  }
+  return bits.join(' · ');
 }
 
 export function mealChoiceLabel(
@@ -97,7 +134,7 @@ export function mealChoiceLabel(
 ): string {
   const rate = preference === 'non-veg' && nonvegPaise != null ? nonvegPaise : vegPaise;
   const n = Math.max(0, Number(rate) || 0);
-  if (n === 0) return `${name} · Free`;
+  if (n === 0) return name;
   return `${name} · ₹${rupees(n)} / person`;
 }
 

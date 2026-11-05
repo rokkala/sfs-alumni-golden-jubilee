@@ -8,6 +8,8 @@ import type { EventCatalog } from '@/lib/events/types';
 type Totals = {
   registration_count: number;
   people: number;
+  alumni_people?: number;
+  accompanying_guests?: number;
   paid_count: number;
   partial_count: number;
   pending_count: number;
@@ -85,7 +87,9 @@ export default function EventOpsPanel() {
   const kpis = t
     ? [
         { label: 'Registrations', value: String(t.registration_count) },
-        { label: 'People', value: String(t.people) },
+        { label: 'People (alumni)', value: String(t.alumni_people ?? '—') },
+        { label: 'Guests', value: String(t.accompanying_guests ?? '—') },
+        { label: 'Total attending', value: String(t.people) },
         { label: 'Checked in', value: String(t.checked_in_count) },
         { label: 'Paid', value: String(t.paid_count) },
         { label: 'Partial', value: String(t.partial_count) },

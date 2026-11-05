@@ -1,4 +1,5 @@
 import { amountDuePaise } from '@/lib/events/balance';
+import { partySplitFromStored } from '@/lib/events/party-bounds';
 import {
   formatGuestMealCounts,
   guestMealCounts,
@@ -23,6 +24,9 @@ export type GateRegistration = {
   registration_code: string;
   full_name: string;
   number_of_guests: number;
+  people_count: number;
+  guest_count: number;
+  attending_total: number;
   meals: string;
   parking: string;
   event_title: string;
@@ -45,15 +49,17 @@ export async function lookupByCode(rawCode: string): Promise<GateLookupResult> {
   const admin = createAdminClient();
   await issueMissingPaidCodes(admin as unknown as RegistrationCodeAdmin);
 
-  const selectWithCheckIn =
-    'id,registration_code,number_of_guests,food_preference,lunch,dinner,guests,parking_needed,payment_status,total_cost_paise,amount_paid_paise,checked_in_at,event_catalog(title),alumni_accounts(full_name)';
-  const selectBase =
-    'id,registration_code,number_of_guests,food_preference,lunch,dinner,guests,parking_needed,payment_status,total_cost_paise,amount_paid_paise,event_catalog(title),alumni_accounts(full_name)';
+  const selects = [
+    'id,registration_code,number_of_guests,alumni_count,food_preference,lunch,dinner,guests,parking_needed,payment_status,total_cost_paise,amount_paid_paise,checked_in_at,event_catalog(title),alumni_accounts(full_name)',
+    'id,registration_code,number_of_guests,alumni_count,food_preference,lunch,dinner,guests,parking_needed,payment_status,total_cost_paise,amount_paid_paise,event_catalog(title),alumni_accounts(full_name)',
+    'id,registration_code,number_of_guests,food_preference,lunch,dinner,guests,parking_needed,payment_status,total_cost_paise,amount_paid_paise,checked_in_at,event_catalog(title),alumni_accounts(full_name)',
+    'id,registration_code,number_of_guests,food_preference,lunch,dinner,guests,parking_needed,payment_status,total_cost_paise,amount_paid_paise,event_catalog(title),alumni_accounts(full_name)',
+  ];
 
   let data: Record<string, unknown> | null = null;
   let error: { message?: string; code?: string } | null = null;
 
-  for (const select of [selectWithCheckIn, selectBase]) {
+  for (const select of selects) {
     const res = await admin
       .from('event_registrations')
       .select(select)
@@ -97,8 +103,10 @@ export async function lookupByCode(rawCode: string): Promise<GateLookupResult> {
   const event = one(data.event_catalog as { title: string } | { title: string }[] | null);
   const due = amountDuePaise(total_cost_paise, amount_paid_paise);
   const payment_status = String(data.payment_status || '');
+  const attendingTotal = Number(data.number_of_guests) || 1;
+  const split = partySplitFromStored(attendingTotal, data.alumni_count as number | null | undefined);
   const summary = venuePassSummary({
-    number_of_guests: Number(data.number_of_guests) || 1,
+    number_of_guests: attendingTotal,
     lunch: Boolean(data.lunch),
     dinner: Boolean(data.dinner),
     parking_needed: String(data.parking_needed || 'none'),
@@ -115,7 +123,10 @@ export async function lookupByCode(rawCode: string): Promise<GateLookupResult> {
       id: String(data.id),
       registration_code: String(data.registration_code || code),
       full_name: account?.full_name || '—',
-      number_of_guests: Number(data.number_of_guests) || 1,
+      number_of_guests: attendingTotal,
+      people_count: split.people,
+      guest_count: split.guests,
+      attending_total: split.total,
       meals: formatGuestMealCounts(guestMealCounts(guests)),
       parking: summary.parking,
       event_title: event?.title || 'Event',

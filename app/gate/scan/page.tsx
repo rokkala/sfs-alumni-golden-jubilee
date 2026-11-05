@@ -11,6 +11,9 @@ type Hit = {
   registration_code: string;
   full_name: string;
   number_of_guests: number;
+  people_count?: number;
+  guest_count?: number;
+  attending_total?: number;
   meals: string;
   parking: string;
   event_title: string;
@@ -24,10 +27,21 @@ type Hit = {
 type Stats = {
   registration_count: number;
   people: number;
+  alumni_people?: number;
+  accompanying_guests?: number;
   checked_in_count: number;
   people_on_site: number;
+  alumni_on_site?: number;
+  guests_on_site?: number;
   unpaid_count: number;
-  recent: { registration_code: string; full_name: string; checked_in_at: string; number_of_guests: number }[];
+  recent: {
+    registration_code: string;
+    full_name: string;
+    checked_in_at: string;
+    number_of_guests: number;
+    people_count?: number;
+    guest_count?: number;
+  }[];
 };
 
 function beep(ok: boolean) {
@@ -172,8 +186,20 @@ export default function GateScanPage() {
             <p className="text-headline-sm text-primary tabular-nums">{stats.checked_in_count}</p>
           </div>
           <div className="rounded-xl bg-surface-paper border border-primary/10 p-3">
-            <p className="text-on-surface-variant">People on site</p>
+            <p className="text-on-surface-variant">Total on site</p>
             <p className="text-headline-sm text-primary tabular-nums">{stats.people_on_site}</p>
+          </div>
+          <div className="rounded-xl bg-surface-paper border border-primary/10 p-3">
+            <p className="text-on-surface-variant">People on site</p>
+            <p className="text-headline-sm text-primary tabular-nums">
+              {stats.alumni_on_site ?? '—'}
+            </p>
+          </div>
+          <div className="rounded-xl bg-surface-paper border border-primary/10 p-3">
+            <p className="text-on-surface-variant">Guests on site</p>
+            <p className="text-headline-sm text-primary tabular-nums">
+              {stats.guests_on_site ?? '—'}
+            </p>
           </div>
         </div>
       )}
@@ -231,7 +257,20 @@ export default function GateScanPage() {
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-on-surface-variant">People</dt>
-              <dd className="tabular-nums">{hit.number_of_guests}</dd>
+              <dd className="tabular-nums">
+                {hit.people_count ?? (hit.number_of_guests > 0 ? 1 : 0)}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-on-surface-variant">Guests</dt>
+              <dd className="tabular-nums">
+                {hit.guest_count ??
+                  Math.max(0, hit.number_of_guests - (hit.number_of_guests > 0 ? 1 : 0))}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-on-surface-variant">Total</dt>
+              <dd className="tabular-nums">{hit.attending_total ?? hit.number_of_guests}</dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-on-surface-variant">Meals</dt>

@@ -15,6 +15,7 @@ type StoredReg = {
   id: string;
   account_id: string;
   number_of_guests: number;
+  alumni_count?: number | null;
   lunch: boolean;
   dinner: boolean;
   parking_needed: string;
@@ -41,13 +42,24 @@ export async function repriceEventRegistrations(eventId: string): Promise<number
 
   const catalog = event as unknown as EventCatalog;
   const pricing = eventToPricing(catalog);
-  const { data: rows, error: regError } = await admin
+  const repriceSelect =
+    'id,account_id,number_of_guests,alumni_count,food_preference,lunch,dinner,guests,parking_needed,amount_paid_paise,total_cost_paise,payment_status,alumni_accounts(batch)';
+  const repriceSelectLegacy =
+    'id,account_id,number_of_guests,food_preference,lunch,dinner,guests,parking_needed,amount_paid_paise,total_cost_paise,payment_status,alumni_accounts(batch)';
+  let { data: rows, error: regError } = await admin
     .from('event_registrations')
-    .select(
-      'id,account_id,number_of_guests,food_preference,lunch,dinner,guests,parking_needed,amount_paid_paise,total_cost_paise,payment_status,alumni_accounts(batch)'
-    )
+    .select(repriceSelect)
     .eq('event_id', id)
     .in('payment_status', [...OPEN_PAYMENT_STATUSES]);
+  if (regError && /alumni_count/i.test(regError.message || '')) {
+    const retry = await admin
+      .from('event_registrations')
+      .select(repriceSelectLegacy)
+      .eq('event_id', id)
+      .in('payment_status', [...OPEN_PAYMENT_STATUSES]);
+    rows = retry.data as typeof rows;
+    regError = retry.error;
+  }
   if (regError || !rows) {
     if (regError) console.error('reprice list', regError);
     return 0;

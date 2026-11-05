@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireVerifiedAdmin } from '@/lib/auth/admin-guard';
+import { partySplitFromStored } from '@/lib/events/party-bounds';
 import { issueMissingPaidCodes, missingColumn, type RegistrationCodeAdmin } from '@/lib/events/registration-code';
 import { repriceEventRegistrations } from '@/lib/events/reprice';
 import { createAdminClient } from '@/lib/supabase-admin';
@@ -25,8 +26,9 @@ export async function GET(request: Request) {
 
   await issueMissingPaidCodes(admin as unknown as RegistrationCodeAdmin);
 
-  const columns =
+  const columnsCore =
     'id,event_id,account_id,phone_number,number_of_guests,food_preference,parking_needed,lunch,dinner,guests,attending,total_cost_paise,amount_paid_paise,payment_status,created_at,event_catalog(title),alumni_accounts(full_name,email,batch)';
+  const columnsWithAlumni = `${columnsCore},alumni_count`;
 
   function list(select: string) {
     let query = admin
@@ -39,9 +41,12 @@ export async function GET(request: Request) {
     return query;
   }
 
-  let { data, error } = await list(`${columns},registration_code`);
+  let { data, error } = await list(`${columnsWithAlumni},registration_code`);
   if (error && missingColumn(error)) {
-    ({ data, error } = await list(columns));
+    ({ data, error } = await list(`${columnsCore},registration_code`));
+  }
+  if (error && missingColumn(error)) {
+    ({ data, error } = await list(columnsCore));
   }
   if (error) {
     console.error('admin registrations', error);
@@ -57,6 +62,7 @@ export async function GET(request: Request) {
     account_id: string;
     phone_number: string | null;
     number_of_guests: number;
+    alumni_count?: number | null;
     food_preference: string | null;
     parking_needed: string;
     lunch: boolean;
@@ -87,6 +93,7 @@ export async function GET(request: Request) {
           : batchRaw != null && String(batchRaw).trim() !== ''
             ? Number(batchRaw) || null
             : null;
+      const split = partySplitFromStored(r.number_of_guests, r.alumni_count);
       return {
         id: r.id,
         event_id: r.event_id,
@@ -97,6 +104,9 @@ export async function GET(request: Request) {
         batch,
         phone_number: r.phone_number,
         number_of_guests: r.number_of_guests,
+        people_count: split.people,
+        guest_count: split.guests,
+        attending_total: split.total,
         food_preference: r.food_preference,
         parking_needed: r.parking_needed,
         lunch: r.lunch,

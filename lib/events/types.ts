@@ -11,6 +11,10 @@ export type EventCatalog = {
   dinner_paise: number;
   lunch_nonveg_paise?: number | null;
   dinner_nonveg_paise?: number | null;
+  /** When true, registration collects lunch + diet even if rates are ₹0. */
+  lunch_provided?: boolean | null;
+  /** When true, registration collects dinner + diet even if rates are ₹0. */
+  dinner_provided?: boolean | null;
   parking_2w_paise: number;
   parking_4w_paise: number;
   base_ticket_paise: number;

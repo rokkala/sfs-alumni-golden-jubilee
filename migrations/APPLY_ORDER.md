@@ -29,6 +29,9 @@ Run in SQL Editor, **filename order**:
 23. `20261101_push_and_broadcasts.sql`
 24. `20261105_event_party_limits.sql`
 25. `20261105_event_guest_fee.sql`
+26. `20261105_registration_alumni_count.sql`
+27. `20261105_payment_accounts.sql`
+28. `20261105_event_meal_provided.sql`
 
 ## 2. Data — `02_data/`
 
@@ -44,4 +47,4 @@ node scripts/dump-supabase-inserts.mjs
 
 ## 3. Storage (not SQL)
 
-Copy buckets `committee-photos` and `alumni-memories`.
+Copy buckets `committee-photos`, `alumni-memories`, and `payment-proofs`.

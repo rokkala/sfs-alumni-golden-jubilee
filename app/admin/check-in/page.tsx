@@ -8,6 +8,9 @@ type Hit = {
   registration_code: string;
   full_name: string;
   number_of_guests: number;
+  people_count?: number;
+  guest_count?: number;
+  attending_total?: number;
   meals?: string;
   event_title: string;
   payment_status: string;
@@ -97,7 +100,22 @@ export default function CheckInPage() {
           <dl className="mt-4 space-y-2 text-body-sm">
             <div className="flex justify-between gap-4">
               <dt className="text-on-surface-variant">People</dt>
-              <dd className="text-primary tabular-nums">{hit.number_of_guests}</dd>
+              <dd className="text-primary tabular-nums">
+                {hit.people_count ?? (hit.number_of_guests > 0 ? 1 : 0)}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-on-surface-variant">Guests</dt>
+              <dd className="text-primary tabular-nums">
+                {hit.guest_count ??
+                  Math.max(0, hit.number_of_guests - (hit.number_of_guests > 0 ? 1 : 0))}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-on-surface-variant">Total</dt>
+              <dd className="text-primary tabular-nums">
+                {hit.attending_total ?? hit.number_of_guests}
+              </dd>
             </div>
             {hit.meals ? (
               <div className="flex justify-between gap-4">

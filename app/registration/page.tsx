@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase';
 import { isPublicEmail, normalizeEmail } from '@/lib/email';
 import RegistrationQr from '@/components/registration-qr';
 import EventPushOptIn from '@/components/event-push-opt-in';
+import OfflinePayModal, { type BankAccountPublic } from '@/components/offline-pay-modal';
 import RefundEmailCta from '@/components/refund-email-cta';
 import BackHomeLink from '@/components/back-home-link';
 import AmountWithFx from '@/components/amount-with-fx';
@@ -42,7 +43,12 @@ import {
     mealIsOffered,
     mealPriceSummary,
 } from '@/lib/events/pricing';
-import { clampPartySize, eventPartyBounds } from '@/lib/events/party-bounds';
+import {
+    clampPartySize,
+    clampPartySplit,
+    eventPartyBounds,
+    MAX_ALUMNI_PER_REGISTRATION,
+} from '@/lib/events/party-bounds';
 import { mergeRegistrationPrefill } from '@/lib/events/existing-registration';
 import type { EventCatalog } from '@/lib/events/types';
 import { openRazorpayCheckout } from '@/lib/payments/checkout-client';
@@ -106,12 +112,31 @@ interface FormData {
     country: string;
     email: string;
     number_of_guests: number;
+    people_count: number;
+    guest_count: number;
     food_preference: FoodPreference;
     parking_needed: '2-wheeler' | '4-wheeler' | 'none';
     lunch: boolean;
     dinner: boolean;
     attending: boolean;
     guests: GuestChoice[];
+}
+
+function withPartySplit(
+    prev: FormData,
+    people: number,
+    guestCount: number,
+    bounds: { min: number; max: number }
+): FormData {
+    const split = clampPartySplit(people, guestCount, bounds);
+    const guests = resizeGuests(prev.guests, split.total, bounds);
+    return {
+        ...prev,
+        people_count: split.people,
+        guest_count: split.guests,
+        number_of_guests: guests.length,
+        guests,
+    };
 }
 
 export default function RegistrationPage() {
@@ -147,6 +172,8 @@ function RegistrationPageInner() {
         country: '',
         email: '',
         number_of_guests: 1,
+        people_count: 1,
+        guest_count: 0,
         food_preference: 'veg',
         parking_needed: 'none',
         lunch: false,
@@ -161,6 +188,8 @@ function RegistrationPageInner() {
     const [lastDue, setLastDue] = useState(0);
     const [saving, setSaving] = useState(false);
     const [paying, setPaying] = useState(false);
+    const [bankAccount, setBankAccount] = useState<BankAccountPublic | null>(null);
+    const [offlineOpen, setOfflineOpen] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
     const [savedFingerprint, setSavedFingerprint] = useState('');
     const [event, setEvent] = useState<EventCatalog | null>(null);
@@ -179,9 +208,15 @@ function RegistrationPageInner() {
         if (!event) return;
         const bounds = eventPartyBounds(event);
         setFormData((prev) => {
-            if (prev.guests.length >= bounds.min && prev.guests.length <= bounds.max) return prev;
-            const guests = resizeGuests(prev.guests, prev.guests.length, bounds);
-            return { ...prev, number_of_guests: guests.length, guests };
+            const next = withPartySplit(prev, prev.people_count, prev.guest_count, bounds);
+            if (
+                next.people_count === prev.people_count &&
+                next.guest_count === prev.guest_count &&
+                next.guests.length === prev.guests.length
+            ) {
+                return prev;
+            }
+            return next;
         });
     }, [event]);
 
@@ -232,6 +267,22 @@ function RegistrationPageInner() {
         }
         void loadEvent();
     }, [searchParams]);
+
+    useEffect(() => {
+        let cancel = false;
+        (async () => {
+            try {
+                const res = await fetch('/api/payments/bank-details', { cache: 'no-store' });
+                const payload = await res.json().catch(() => ({}));
+                if (!cancel && res.ok) setBankAccount(payload.account || null);
+            } catch {
+                if (!cancel) setBankAccount(null);
+            }
+        })();
+        return () => {
+            cancel = true;
+        };
+    }, []);
 
     // Check table-based session on mount
     useEffect(() => {
@@ -321,6 +372,8 @@ function RegistrationPageInner() {
                 }
                 const loadedChoices = {
                     number_of_guests: merged.guests.length,
+                    people_count: merged.people_count,
+                    guest_count: merged.guest_count,
                     food_preference: merged.food_preference,
                     parking_needed: merged.parking_needed,
                     lunch: merged.lunch,
@@ -469,10 +522,12 @@ function RegistrationPageInner() {
     }
 
     const lunchOffered = mealIsOffered(
+        eventPricing.lunch_provided,
         eventPricing.lunch_paise,
         eventPricing.lunch_nonveg_paise
     );
     const dinnerOffered = mealIsOffered(
+        eventPricing.dinner_provided,
         eventPricing.dinner_paise,
         eventPricing.dinner_nonveg_paise
     );
@@ -504,12 +559,16 @@ function RegistrationPageInner() {
     const costBreakdown = getEventCostBreakdown(eventPricing, {
         guests: formData.guests,
         parkingNeeded: formData.parking_needed,
+        alumniCount: formData.people_count,
+        guestCount: formData.guest_count,
         batch: formData.batch ?? null,
     });
     const totalCost = costBreakdown.totalCost;
 
     function choicesFingerprint(data: FormData) {
         return [
+            data.people_count,
+            data.guest_count,
             data.guests.length,
             data.parking_needed,
             data.attending,
@@ -604,6 +663,8 @@ function RegistrationPageInner() {
                     city: formData.city.trim(),
                     country: formData.country.trim(),
                     number_of_guests: formData.guests.length,
+                    alumni_count: formData.people_count,
+                    guest_count: formData.guest_count,
                     guests: formData.guests,
                     parking_needed: formData.parking_needed,
                     attending: formData.attending,
@@ -1219,36 +1280,69 @@ function RegistrationPageInner() {
                                 </h2>
 
                                 <div className="space-y-4">
-                                    <div className="flex flex-col">
-                                        <label className="text-label-md text-primary mb-2 uppercase tracking-wider">
-                                            Number of People Attending the Meet *
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min={partyBounds.min}
-                                            max={partyBounds.max}
-                                            value={formData.guests.length}
-                                            onChange={(e) => {
-                                                const guests = resizeGuests(
-                                                    formData.guests,
-                                                    parseInt(e.target.value, 10),
-                                                    partyBounds
-                                                );
-                                                setFormData({
-                                                    ...formData,
-                                                    number_of_guests: guests.length,
-                                                    guests,
-                                                });
-                                            }}
-                                            required
-                                            disabled={busy}
-                                            className="px-4 py-3.5 rounded-lg border border-outline-variant text-body-sm bg-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all disabled:opacity-50"
-                                        />
-                                        <p className="text-label-sm text-on-surface-variant mt-1">
-                                            Include yourself ({partyBounds.min}–{partyBounds.max}{' '}
-                                            people). Set food and meals for each person below.
-                                        </p>
+                                    <div className="grid sm:grid-cols-2 gap-4">
+                                        <div className="flex flex-col">
+                                            <label className="text-label-md text-primary mb-2 uppercase tracking-wider">
+                                                Number of People *
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min={partyBounds.min >= 1 ? 1 : 0}
+                                                max={MAX_ALUMNI_PER_REGISTRATION}
+                                                value={formData.people_count}
+                                                onChange={(e) => {
+                                                    setFormData(
+                                                        withPartySplit(
+                                                            formData,
+                                                            parseInt(e.target.value, 10),
+                                                            formData.guest_count,
+                                                            partyBounds
+                                                        )
+                                                    );
+                                                }}
+                                                required
+                                                disabled={busy}
+                                                className="px-4 py-3.5 rounded-lg border border-outline-variant text-body-sm bg-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all disabled:opacity-50"
+                                            />
+                                            <p className="text-label-sm text-on-surface-variant mt-1">
+                                                Alumni / you (0 or 1). Extra attendees are guests.
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <label className="text-label-md text-primary mb-2 uppercase tracking-wider">
+                                                Number of Guests *
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                max={partyBounds.max}
+                                                value={formData.guest_count}
+                                                onChange={(e) => {
+                                                    setFormData(
+                                                        withPartySplit(
+                                                            formData,
+                                                            formData.people_count,
+                                                            parseInt(e.target.value, 10),
+                                                            partyBounds
+                                                        )
+                                                    );
+                                                }}
+                                                required
+                                                disabled={busy}
+                                                className="px-4 py-3.5 rounded-lg border border-outline-variant text-body-sm bg-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all disabled:opacity-50"
+                                            />
+                                            <p className="text-label-sm text-on-surface-variant mt-1">
+                                                Accompanying guests
+                                            </p>
+                                        </div>
                                     </div>
+                                    <p className="text-body-sm text-primary font-semibold">
+                                        Total attending: {formData.guests.length}{' '}
+                                        <span className="text-on-surface-variant font-normal">
+                                            ({formData.people_count} people + {formData.guest_count}{' '}
+                                            guests · limit {partyBounds.min}–{partyBounds.max})
+                                        </span>
+                                    </p>
 
                                     {mealsOffered ? (
                                         <div className="flex flex-col gap-4">
@@ -1261,7 +1355,11 @@ function RegistrationPageInner() {
                                                     className="rounded-lg border border-outline-variant bg-surface px-4 py-3 space-y-3"
                                                 >
                                                     <p className="text-label-md text-primary">
-                                                        {index === 0 ? 'You' : `Guest ${index + 1}`}
+                                                        {index < formData.people_count
+                                                            ? formData.people_count === 1
+                                                                ? 'You'
+                                                                : `Person ${index + 1}`
+                                                            : `Guest ${index - formData.people_count + 1}`}
                                                     </p>
                                                     <div className="flex flex-wrap gap-4">
                                                         {(
@@ -1396,7 +1494,7 @@ function RegistrationPageInner() {
                                                 [
                                                     { value: '2-wheeler', label: `2-Wheeler · ₹${(eventPricing.parking_2w_paise / 100).toFixed(0)}` },
                                                     { value: '4-wheeler', label: `4-Wheeler · ₹${(eventPricing.parking_4w_paise / 100).toFixed(0)}` },
-                                                    { value: 'none', label: 'No Vehicle' },
+                                                    { value: 'none', label: 'No Parking needed' },
                                                 ] as const
                                             ).map((option) => (
                                                 <label key={option.value} className="flex items-center gap-3">
@@ -1486,7 +1584,7 @@ function RegistrationPageInner() {
                                 <button
                                     type="submit"
                                     disabled={busy}
-                                    className="flex-1 py-3 rounded-lg bg-primary text-on-primary text-label-md uppercase tracking-wider font-bold hover:bg-navy-subtle disabled:bg-surface-container disabled:text-on-surface-variant transition-all"
+                                    className="flex-1 py-3 rounded-lg bg-primary text-on-primary text-label-md uppercase tracking-wider font-bold hover:bg-navy-subtle disabled:bg-surface-container disabled:text-on-surface-variant transition-all focus:outline-none focus:ring-2 focus:ring-primary"
                                 >
                                     {saving ? 'Saving…' : hasSavedReg ? 'Save changes' : 'Save registration'}
                                 </button>
@@ -1505,21 +1603,57 @@ function RegistrationPageInner() {
                                                   ? 'Nothing due'
                                                   : undefined
                                     }
-                                    className="flex-1 py-3 rounded-lg bg-secondary-container text-on-secondary-fixed text-label-md uppercase tracking-wider font-bold hover:bg-secondary-fixed disabled:bg-surface-container disabled:text-on-surface-variant transition-all"
+                                    className="flex-1 py-3 rounded-lg bg-secondary-container text-on-secondary-fixed text-label-md uppercase tracking-wider font-bold hover:bg-secondary-fixed disabled:bg-surface-container disabled:text-on-surface-variant transition-all focus:outline-none focus:ring-2 focus:ring-primary"
                                 >
                                     {paying
                                         ? 'Opening payment…'
                                         : lastDue > 0
-                                          ? `Pay ${formatCostForDisplay(formDirty ? liveDue : lastDue)}`
+                                          ? `Pay ${formatCostForDisplay(formDirty ? liveDue : lastDue)} (Razorpay)`
                                           : 'Pay'}
                                 </button>
                             </div>
+                            {bankAccount ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setOfflineOpen(true)}
+                                    disabled={busy || !canPay}
+                                    title={
+                                        !registrationId
+                                            ? 'Save first'
+                                            : formDirty
+                                              ? 'Save your changes before paying'
+                                              : priceDrift
+                                                ? 'Save so the new event rates apply before paying'
+                                                : lastDue <= 0
+                                                  ? 'Nothing due'
+                                                  : undefined
+                                    }
+                                    className="w-full mt-3 py-3 rounded-lg border border-outline-variant bg-white text-primary text-label-md uppercase tracking-wider font-bold disabled:bg-surface-container disabled:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary"
+                                >
+                                    Bank / UPI transfer
+                                    {lastDue > 0
+                                        ? ` · ${formatCostForDisplay(formDirty ? liveDue : lastDue)}`
+                                        : ''}
+                                </button>
+                            ) : null}
                             {(formDirty || priceDrift) && registrationId && liveDue > 0 && (
                                 <p className="text-label-sm text-on-surface-variant text-center">
                                     Save changes to unlock Pay for the updated amount.
                                 </p>
                             )}
                         </form>
+
+                        {bankAccount && registrationId && lastDue > 0 ? (
+                            <OfflinePayModal
+                                open={offlineOpen}
+                                onClose={() => setOfflineOpen(false)}
+                                account={bankAccount}
+                                amountPaise={lastDue}
+                                note={event?.title || 'Event registration'}
+                                source={{ type: 'registration', registrationId }}
+                                onSubmitted={(msg) => setSaveMessage(msg)}
+                            />
+                        ) : null}
 
                         <div className="text-center mt-6">
                             <BackHomeLink signedIn />
@@ -1577,62 +1711,122 @@ function RegistrationPageInner() {
                                   : 'Your registration has been updated.'}
                         </p>
 
-                        <div className="mb-6 rounded-lg border border-outline-variant bg-surface px-4 py-3 text-left">
+                        <div className="mb-6 rounded-lg border border-outline-variant bg-surface px-4 py-3 text-left space-y-4">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
                                     <div className="text-label-md text-primary uppercase tracking-wider">
-                                        Number of People Attending the Meet
+                                        Number of People
                                     </div>
                                     <p className="text-label-sm text-on-surface-variant mt-1">
-                                        Includes you ({partyBounds.min}–{partyBounds.max})
+                                        Alumni / you (0 or 1)
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button
                                         type="button"
                                         aria-label="Fewer people"
-                                        disabled={busy || formData.guests.length <= partyBounds.min}
-                                        onClick={() => {
-                                            const guests = resizeGuests(
-                                                formData.guests,
-                                                formData.guests.length - 1,
-                                                partyBounds
-                                            );
-                                            setFormData({
-                                                ...formData,
-                                                number_of_guests: guests.length,
-                                                guests,
-                                            });
-                                        }}
+                                        disabled={
+                                            busy ||
+                                            formData.people_count <= (partyBounds.min >= 1 ? 1 : 0)
+                                        }
+                                        onClick={() =>
+                                            setFormData(
+                                                withPartySplit(
+                                                    formData,
+                                                    formData.people_count - 1,
+                                                    formData.guest_count,
+                                                    partyBounds
+                                                )
+                                            )
+                                        }
                                         className="h-12 w-12 rounded-lg border border-outline-variant text-headline-sm text-primary hover:bg-surface-container disabled:opacity-40 cursor-pointer"
                                     >
                                         −
                                     </button>
                                     <span className="w-8 text-center text-headline-sm text-primary tabular-nums">
-                                        {formData.guests.length}
+                                        {formData.people_count}
                                     </span>
                                     <button
                                         type="button"
                                         aria-label="More people"
-                                        disabled={busy || formData.guests.length >= partyBounds.max}
-                                        onClick={() => {
-                                            const guests = resizeGuests(
-                                                formData.guests,
-                                                formData.guests.length + 1,
-                                                partyBounds
-                                            );
-                                            setFormData({
-                                                ...formData,
-                                                number_of_guests: guests.length,
-                                                guests,
-                                            });
-                                        }}
+                                        disabled={
+                                            busy ||
+                                            formData.people_count >= MAX_ALUMNI_PER_REGISTRATION ||
+                                            formData.guests.length >= partyBounds.max
+                                        }
+                                        onClick={() =>
+                                            setFormData(
+                                                withPartySplit(
+                                                    formData,
+                                                    formData.people_count + 1,
+                                                    formData.guest_count,
+                                                    partyBounds
+                                                )
+                                            )
+                                        }
                                         className="h-12 w-12 rounded-lg border border-outline-variant text-headline-sm text-primary hover:bg-surface-container disabled:opacity-40 cursor-pointer"
                                     >
                                         +
                                     </button>
                                 </div>
                             </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <div className="text-label-md text-primary uppercase tracking-wider">
+                                        Number of Guests
+                                    </div>
+                                    <p className="text-label-sm text-on-surface-variant mt-1">
+                                        Accompanying guests
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        aria-label="Fewer guests"
+                                        disabled={busy || formData.guest_count <= 0}
+                                        onClick={() =>
+                                            setFormData(
+                                                withPartySplit(
+                                                    formData,
+                                                    formData.people_count,
+                                                    formData.guest_count - 1,
+                                                    partyBounds
+                                                )
+                                            )
+                                        }
+                                        className="h-12 w-12 rounded-lg border border-outline-variant text-headline-sm text-primary hover:bg-surface-container disabled:opacity-40 cursor-pointer"
+                                    >
+                                        −
+                                    </button>
+                                    <span className="w-8 text-center text-headline-sm text-primary tabular-nums">
+                                        {formData.guest_count}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        aria-label="More guests"
+                                        disabled={busy || formData.guests.length >= partyBounds.max}
+                                        onClick={() =>
+                                            setFormData(
+                                                withPartySplit(
+                                                    formData,
+                                                    formData.people_count,
+                                                    formData.guest_count + 1,
+                                                    partyBounds
+                                                )
+                                            )
+                                        }
+                                        className="h-12 w-12 rounded-lg border border-outline-variant text-headline-sm text-primary hover:bg-surface-container disabled:opacity-40 cursor-pointer"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+                            <p className="text-body-sm text-primary font-semibold">
+                                Total attending: {formData.guests.length}{' '}
+                                <span className="text-on-surface-variant font-normal">
+                                    (limit {partyBounds.min}–{partyBounds.max})
+                                </span>
+                            </p>
                             {formDirty && (
                                 <p className="text-body-sm text-on-surface-variant mt-3">
                                     New total {formatCostForDisplay(totalCost)}.

@@ -21,7 +21,12 @@ registerHooks({
 });
 
 const { repriceRegistration } = await import('../lib/events/reprice-math.ts');
-const { mealChoiceLabel, mealPriceSummary } = await import('../lib/events/pricing.ts');
+const {
+  mealChoiceLabel,
+  mealIsOffered,
+  mealPriceSummary,
+  clampGuestMealsToPricing,
+} = await import('../lib/events/pricing.ts');
 
 const oldRates = {
   lunch_paise: 30000,
@@ -103,9 +108,53 @@ assert(
   'non-veg meal label uses the admin non-veg rate'
 );
 assert(mealChoiceLabel('Dinner', 60000, null, 'non-veg') === 'Dinner · ₹600 / person', 'missing non-veg rate uses veg');
+assert(mealChoiceLabel('Lunch', 0, 0, 'veg') === 'Lunch', '₹0 meal label has no amount');
 assert(
-  mealPriceSummary({ ...newRates, lunch_nonveg_paise: 50000 }).includes('Lunch veg ₹400 · non-veg ₹500'),
+  mealPriceSummary({ ...newRates, lunch_nonveg_paise: 50000, lunch_provided: true, dinner_provided: true }).includes(
+    'Lunch veg ₹400 · non-veg ₹500'
+  ),
   'event summary shows both lunch rates'
+);
+assert(mealIsOffered(true, 0, 0) === true, 'provided free meal is offered');
+assert(mealIsOffered(false, 40000, 55000) === false, 'not-provided meal stays hidden even if priced');
+assert(mealIsOffered(undefined, 40000, 55000) === true, 'legacy priced meal is offered');
+assert(mealIsOffered(undefined, 0, 0) === false, 'legacy ₹0 meal is not offered');
+assert(mealIsOffered(undefined, 0, 100) === true, 'legacy non-veg-only rate still offers the meal');
+assert(
+  mealPriceSummary({
+    ...newRates,
+    lunch_paise: 0,
+    lunch_nonveg_paise: 0,
+    lunch_provided: true,
+    dinner_paise: 60000,
+    dinner_nonveg_paise: null,
+    dinner_provided: true,
+  }) === 'Lunch · Dinner ₹600 / person',
+  'summary shows free provided lunch without amount'
+);
+assert(
+  mealPriceSummary({
+    ...newRates,
+    lunch_provided: false,
+    dinner_provided: true,
+    dinner_paise: 60000,
+  }) === 'Dinner ₹600 / person',
+  'summary omits meals that are not provided'
+);
+assert(
+  JSON.stringify(
+    clampGuestMealsToPricing(
+      {
+        ...newRates,
+        lunch_paise: 0,
+        lunch_nonveg_paise: 0,
+        lunch_provided: true,
+        dinner_provided: false,
+      },
+      [{ preference: 'veg', lunch: true, dinner: true }]
+    )
+  ) === JSON.stringify([{ preference: 'veg', lunch: true, dinner: false }]),
+  'clamp keeps free provided lunch and clears not-provided dinner'
 );
 
 console.log('check-reprice: PASS');

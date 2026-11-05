@@ -14,6 +14,12 @@ export const EVENT_SELECT_DIET_NO_GUEST = `${EVENT_SELECT_NO_GUEST},lunch_nonveg
 export const EVENT_SELECT_DIET_CORE_NO_GUEST = `${EVENT_SELECT_CORE_NO_GUEST},lunch_nonveg_paise,dinner_nonveg_paise`;
 export const EVENT_SELECT_DIET_LEGACY = `${EVENT_SELECT_LEGACY},lunch_nonveg_paise,dinner_nonveg_paise`;
 export const EVENT_SELECT_DIET_LEGACY_REFUND = `${EVENT_SELECT_LEGACY_REFUND},lunch_nonveg_paise,dinner_nonveg_paise`;
+export const EVENT_SELECT_MEALS = `${EVENT_SELECT_DIET},lunch_provided,dinner_provided`;
+export const EVENT_SELECT_MEALS_CORE = `${EVENT_SELECT_DIET_CORE},lunch_provided,dinner_provided`;
+export const EVENT_SELECT_MEALS_NO_GUEST = `${EVENT_SELECT_DIET_NO_GUEST},lunch_provided,dinner_provided`;
+export const EVENT_SELECT_MEALS_CORE_NO_GUEST = `${EVENT_SELECT_DIET_CORE_NO_GUEST},lunch_provided,dinner_provided`;
+export const EVENT_SELECT_MEALS_LEGACY = `${EVENT_SELECT_DIET_LEGACY},lunch_provided,dinner_provided`;
+export const EVENT_SELECT_MEALS_LEGACY_REFUND = `${EVENT_SELECT_DIET_LEGACY_REFUND},lunch_provided,dinner_provided`;
 
 type CatalogError = { code?: string; message?: string } | null;
 type CatalogResult<T> = { data: T; error: CatalogError };
@@ -23,16 +29,22 @@ export async function selectCatalog<T>(
   run: (columns: string) => PromiseLike<CatalogResult<T>>
 ): Promise<CatalogResult<T>> {
   const attempts = [
+    EVENT_SELECT_MEALS,
     EVENT_SELECT_DIET,
     EVENT_SELECT,
+    EVENT_SELECT_MEALS_CORE,
     EVENT_SELECT_DIET_CORE,
     EVENT_SELECT_CORE,
+    EVENT_SELECT_MEALS_NO_GUEST,
     EVENT_SELECT_DIET_NO_GUEST,
     EVENT_SELECT_NO_GUEST,
+    EVENT_SELECT_MEALS_CORE_NO_GUEST,
     EVENT_SELECT_DIET_CORE_NO_GUEST,
     EVENT_SELECT_CORE_NO_GUEST,
+    EVENT_SELECT_MEALS_LEGACY_REFUND,
     EVENT_SELECT_DIET_LEGACY_REFUND,
     EVENT_SELECT_LEGACY_REFUND,
+    EVENT_SELECT_MEALS_LEGACY,
     EVENT_SELECT_DIET_LEGACY,
     EVENT_SELECT_LEGACY,
   ];
@@ -48,6 +60,13 @@ export function withoutDietPrices<T extends Record<string, unknown>>(row: T): T 
   const next = { ...row };
   delete next.lunch_nonveg_paise;
   delete next.dinner_nonveg_paise;
+  return next;
+}
+
+export function withoutMealProvided<T extends Record<string, unknown>>(row: T): T {
+  const next = { ...row };
+  delete next.lunch_provided;
+  delete next.dinner_provided;
   return next;
 }
 
@@ -80,6 +99,9 @@ export function withoutGuestFee<T extends Record<string, unknown>>(row: T): T {
 
 export const DIET_PRICE_WARNING =
   'The event was saved. Veg and non-veg prices are not stored yet — run the meal diet price migration in Supabase, then save the event again.';
+
+export const MEAL_PROVIDED_WARNING =
+  'The event was saved, but lunch/dinner provided flags were not stored. Run supabase/migrations/20261105_event_meal_provided.sql in the Supabase SQL Editor, then save the event again.';
 
 export const PARTY_LIMITS_WARNING =
   'The event was saved, but min/max people attending were not stored. Run supabase/migrations/20261105_event_party_limits.sql in the Supabase SQL Editor, then save the event again.';

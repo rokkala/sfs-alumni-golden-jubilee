@@ -45,7 +45,7 @@
     "id": "09-registration",
     "path": "/registration",
     "scroll": true,
-    "vo": "This is the Event Registration Form. Fill personal details, set food preference — Veg, Non-Veg, or No Food — and parking — Two-wheeler, Four-wheeler, or No Vehicle. Add guests when allowed. The fee total updates on screen. Click Save to store your choices, then Pay through Razorpay when ready."
+    "vo": "This is the Event Registration Form. Fill personal details, set food preference — Veg, Non-Veg, or No Food — and parking — Two-wheeler, Four-wheeler, or No Parking needed. Add guests when allowed. The fee total updates on screen. Click Save to store your choices, then Pay through Razorpay when ready."
   },
   {
     "id": "10-stories",

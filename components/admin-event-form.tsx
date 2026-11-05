@@ -19,6 +19,8 @@ type FormState = {
   venue: string;
   published: boolean;
   is_primary: boolean;
+  lunch_provided: boolean;
+  dinner_provided: boolean;
   lunch_rupees: string;
   lunch_nonveg_rupees: string;
   dinner_rupees: string;
@@ -62,6 +64,12 @@ function initialFrom(event?: EventCatalog | null): FormState {
     venue: event?.venue || '',
     published: event?.published ?? false,
     is_primary: event?.is_primary ?? false,
+    lunch_provided:
+      event?.lunch_provided ??
+      ((event?.lunch_paise ?? 30000) > 0 || (event?.lunch_nonveg_paise ?? 0) > 0),
+    dinner_provided:
+      event?.dinner_provided ??
+      ((event?.dinner_paise ?? 50000) > 0 || (event?.dinner_nonveg_paise ?? 0) > 0),
     lunch_rupees: paiseToRupeesField(event?.lunch_paise ?? 30000),
     lunch_nonveg_rupees: paiseToRupeesField(event?.lunch_nonveg_paise ?? event?.lunch_paise ?? 30000),
     dinner_rupees: paiseToRupeesField(event?.dinner_paise ?? 50000),
@@ -94,6 +102,8 @@ function pricingFromForm(f: FormState): EventPricing {
     lunch_nonveg_paise: r(f.lunch_nonveg_rupees),
     dinner_paise: r(f.dinner_rupees),
     dinner_nonveg_paise: r(f.dinner_nonveg_rupees),
+    lunch_provided: f.lunch_provided,
+    dinner_provided: f.dinner_provided,
     parking_2w_paise: r(f.parking_2w_rupees),
     parking_4w_paise: r(f.parking_4w_rupees),
     base_ticket_paise: r(f.base_ticket_rupees),
@@ -292,20 +302,42 @@ export default function AdminEventForm({ event }: { event?: EventCatalog | null 
 
         <section className="rounded-2xl border border-jubilee-gold-light bg-gradient-to-br from-secondary-container/25 to-surface-paper p-5 space-y-4 shadow-sm">
           <h3 className="text-headline-sm text-primary">Pricing (₹)</h3>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-body-sm text-primary cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.lunch_provided}
+                onChange={(e) => setField('lunch_provided', e.target.checked)}
+              />
+              Lunch provided
+            </label>
+            <label className="flex items-center gap-2 text-body-sm text-primary cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.dinner_provided}
+                onChange={(e) => setField('dinner_provided', e.target.checked)}
+              />
+              Dinner provided
+            </label>
+          </div>
+          <p className="text-label-sm text-on-surface-variant">
+            Provided meals always collect veg / non-veg for reporting. Set amount to ₹0 for a free
+            meal; leave unchecked to hide that meal on registration.
+          </p>
           <div className="grid sm:grid-cols-2 gap-4">
             {(
               [
-                ['lunch_rupees', 'Lunch · veg / person'],
-                ['lunch_nonveg_rupees', 'Lunch · non-veg / person'],
-                ['dinner_rupees', 'Dinner · veg / person'],
-                ['dinner_nonveg_rupees', 'Dinner · non-veg / person'],
-                ['parking_2w_rupees', '2-wheeler parking'],
-                ['parking_4w_rupees', '4-wheeler parking'],
-                ['base_ticket_rupees', 'Registration fee (alumnus)'],
-                ['guest_fee_rupees', 'Guest registration fee / guest'],
+                ['lunch_rupees', 'Lunch · veg / person', 'lunch_provided'],
+                ['lunch_nonveg_rupees', 'Lunch · non-veg / person', 'lunch_provided'],
+                ['dinner_rupees', 'Dinner · veg / person', 'dinner_provided'],
+                ['dinner_nonveg_rupees', 'Dinner · non-veg / person', 'dinner_provided'],
+                ['parking_2w_rupees', '2-wheeler parking', null],
+                ['parking_4w_rupees', '4-wheeler parking', null],
+                ['base_ticket_rupees', 'Registration fee (alumnus)', null],
+                ['guest_fee_rupees', 'Guest registration fee / guest', null],
               ] as const
-            ).map(([key, lab]) => (
-              <div key={key}>
+            ).map(([key, lab, gate]) => (
+              <div key={key} className={gate && !form[gate] ? 'opacity-50' : undefined}>
                 <label className={label} htmlFor={key}>{lab}</label>
                 <input
                   id={key}
@@ -315,6 +347,7 @@ export default function AdminEventForm({ event }: { event?: EventCatalog | null 
                   inputMode="decimal"
                   className={field}
                   value={form[key]}
+                  disabled={gate ? !form[gate] : false}
                   onChange={(e) => setField(key, e.target.value)}
                 />
               </div>

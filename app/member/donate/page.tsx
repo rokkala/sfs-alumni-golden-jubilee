@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import AmountWithFx from '@/components/amount-with-fx';
 import DonationThanksModal from '@/components/donation-thanks-modal';
 import MemberGate from '@/components/member-gate';
+import OfflinePayModal, { type BankAccountPublic } from '@/components/offline-pay-modal';
 import PortalShell from '@/components/portal-shell';
 import {
   DONATION_AMOUNT_CHIPS_PAISE,
@@ -32,6 +33,9 @@ export default function MemberDonatePage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [bankAccount, setBankAccount] = useState<BankAccountPublic | null>(null);
+  const [offlineOpen, setOfflineOpen] = useState(false);
+  const [offlineNote, setOfflineNote] = useState('');
   const [success, setSuccess] = useState<{
     amount_paise: number;
     causeTitle: string;
@@ -42,17 +46,22 @@ export default function MemberDonatePage() {
     let active = true;
     (async () => {
       try {
-        const res = await fetch('/api/donations/causes', { cache: 'no-store' });
-        const payload = await res.json().catch(() => ({}));
+        const [causesRes, bankRes] = await Promise.all([
+          fetch('/api/donations/causes', { cache: 'no-store' }),
+          fetch('/api/payments/bank-details', { cache: 'no-store' }),
+        ]);
+        const causesPayload = await causesRes.json().catch(() => ({}));
+        const bankPayload = await bankRes.json().catch(() => ({}));
         if (!active) return;
-        if (!res.ok) {
+        if (!causesRes.ok) {
           setCauses([]);
-          setError(payload.error || 'Could not load causes');
+          setError(causesPayload.error || 'Could not load causes');
           return;
         }
-        const list = (payload.causes || []) as Cause[];
+        const list = (causesPayload.causes || []) as Cause[];
         setCauses(list);
         if (list[0]) setCauseId(list[0].id);
+        setBankAccount(bankRes.ok ? bankPayload.account || null : null);
       } catch {
         if (active) {
           setCauses([]);
@@ -332,17 +341,51 @@ export default function MemberDonatePage() {
               </div>
             ) : null}
 
-            <button
-              type="submit"
-              disabled={busy || !causes?.length || !canPay}
-              className="w-full rounded-lg bg-primary text-on-primary px-4 py-3 text-label-sm font-bold uppercase tracking-wider disabled:opacity-50"
-            >
-              {busy ? 'Opening payment…' : 'Pay with Razorpay'}
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="submit"
+                disabled={busy || !causes?.length || !canPay}
+                className="w-full rounded-lg bg-primary text-on-primary px-4 py-3 text-label-sm font-bold uppercase tracking-wider disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                {busy ? 'Opening payment…' : 'Pay with Razorpay'}
+              </button>
+              {bankAccount ? (
+                <button
+                  type="button"
+                  disabled={busy || !causes?.length || !canPay}
+                  onClick={() => {
+                    setError('');
+                    setOfflineNote('');
+                    setOfflineOpen(true);
+                  }}
+                  className="w-full rounded-lg border border-outline-variant bg-white text-primary px-4 py-3 text-label-sm font-bold uppercase tracking-wider disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  Bank / UPI transfer
+                </button>
+              ) : null}
+            </div>
             <p className="text-body-sm text-on-surface-variant text-center">
-              Secure checkout via Razorpay · UPI and cards
+              {bankAccount
+                ? 'Razorpay for instant pay · Bank / UPI for NEFT or scan-and-pay (committee verifies)'
+                : 'Secure checkout via Razorpay · UPI and cards'}
             </p>
+            {offlineNote ? (
+              <p className="rounded-lg bg-secondary-container text-on-secondary-fixed text-body-sm p-3">
+                {offlineNote}
+              </p>
+            ) : null}
           </form>
+          {bankAccount && payableAmount != null ? (
+            <OfflinePayModal
+              open={offlineOpen}
+              onClose={() => setOfflineOpen(false)}
+              account={bankAccount}
+              amountPaise={payableAmount}
+              note={selectedCause?.title || 'Donation'}
+              source={{ type: 'donation', causeId, message }}
+              onSubmitted={(msg) => setOfflineNote(msg)}
+            />
+          ) : null}
       </MemberGate>
     </PortalShell>
   );

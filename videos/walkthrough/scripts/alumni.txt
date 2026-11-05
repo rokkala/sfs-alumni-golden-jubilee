@@ -20,7 +20,7 @@ Click People in the portal menu. This is Find People — the alumni directory. S
 
 Click Events. This lists reunions and celebrations open for registration. Click into the Golden Jubilee event, then open the registration form.
 
-On the registration form, fill personal details. Set food preference — Veg, Non-Veg, or No Food. Set parking — Two-wheeler, Four-wheeler, or No Vehicle. Add guests and meal choices when the form allows. The fee total updates on screen. Click Save so your choices are stored when you return. Then use Pay to complete registration through Razorpay when you are ready. Saved registrations stay available on your next login.
+On the registration form, fill personal details. Set food preference — Veg, Non-Veg, or No Food. Set parking — Two-wheeler, Four-wheeler, or No Parking needed. Add guests and meal choices when the form allows. The fee total updates on screen. Click Save so your choices are stored when you return. Then use Pay to complete registration through Razorpay when you are ready. Saved registrations stay available on your next login.
 
 Click Stories in the portal menu. Read published alumni stories. These appear only after committee approval.
 

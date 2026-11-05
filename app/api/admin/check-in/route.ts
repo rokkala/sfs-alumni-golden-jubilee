@@ -7,6 +7,7 @@ import {
   normalizeRegistrationCode,
   type RegistrationCodeAdmin,
 } from '@/lib/events/registration-code';
+import { partySplitFromStored } from '@/lib/events/party-bounds';
 import {
   formatGuestMealCounts,
   guestMealCounts,
@@ -26,13 +27,24 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
   await issueMissingPaidCodes(admin as unknown as RegistrationCodeAdmin);
-  const { data, error } = await admin
+  const selectWithAlumni =
+    'registration_code,number_of_guests,alumni_count,food_preference,lunch,dinner,guests,payment_status,total_cost_paise,amount_paid_paise,event_catalog(title),alumni_accounts(full_name)';
+  const selectLegacy =
+    'registration_code,number_of_guests,food_preference,lunch,dinner,guests,payment_status,total_cost_paise,amount_paid_paise,event_catalog(title),alumni_accounts(full_name)';
+  let { data, error } = await admin
     .from('event_registrations')
-    .select(
-      'registration_code,number_of_guests,food_preference,lunch,dinner,guests,payment_status,total_cost_paise,amount_paid_paise,event_catalog(title),alumni_accounts(full_name)'
-    )
+    .select(selectWithAlumni)
     .eq('registration_code', code)
     .maybeSingle();
+  if (error && missingColumn(error)) {
+    const retry = await admin
+      .from('event_registrations')
+      .select(selectLegacy)
+      .eq('registration_code', code)
+      .maybeSingle();
+    data = retry.data as typeof data;
+    error = retry.error;
+  }
 
   if (error && missingColumn(error)) {
     return NextResponse.json(
@@ -51,6 +63,7 @@ export async function GET(request: Request) {
   const row = data as {
     registration_code: string;
     number_of_guests: number;
+    alumni_count?: number | null;
     food_preference?: string | null;
     lunch?: boolean;
     dinner?: boolean;
@@ -69,11 +82,15 @@ export async function GET(request: Request) {
     Array.isArray(row.guests) && row.guests.length > 0
       ? normalizeGuests(row.guests, row.number_of_guests)
       : guestsFromLegacy(row.number_of_guests, row.food_preference, Boolean(row.lunch), Boolean(row.dinner));
+  const split = partySplitFromStored(row.number_of_guests, row.alumni_count);
 
   return NextResponse.json({
     registration_code: row.registration_code,
     full_name: account?.full_name || '—',
     number_of_guests: row.number_of_guests,
+    people_count: split.people,
+    guest_count: split.guests,
+    attending_total: split.total,
     meals: formatGuestMealCounts(guestMealCounts(guests)),
     event_title: event?.title || 'Event',
     payment_status: row.payment_status,

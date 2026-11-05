@@ -2,13 +2,15 @@ import { NextResponse } from 'next/server';
 import { requireVerifiedAdmin } from '@/lib/auth/admin-guard';
 import {
   DIET_PRICE_WARNING,
-  EVENT_SELECT_DIET,
+  EVENT_SELECT_MEALS,
   GUEST_FEE_WARNING,
+  MEAL_PROVIDED_WARNING,
   PARTY_LIMITS_WARNING,
   selectCatalog,
   withoutDietPrices,
   withoutFeeBatch,
   withoutGuestFee,
+  withoutMealProvided,
   withoutPartyLimits,
   withoutRefundEmail,
 } from '@/lib/events/catalog-select';
@@ -53,6 +55,8 @@ export async function PATCH(request: Request, ctx: Ctx) {
   if (body.dinner_paise !== undefined) patch.dinner_paise = parseNonNegInt(body.dinner_paise);
   if (body.lunch_nonveg_paise !== undefined) patch.lunch_nonveg_paise = parseNonNegInt(body.lunch_nonveg_paise);
   if (body.dinner_nonveg_paise !== undefined) patch.dinner_nonveg_paise = parseNonNegInt(body.dinner_nonveg_paise);
+  if (body.lunch_provided !== undefined) patch.lunch_provided = Boolean(body.lunch_provided);
+  if (body.dinner_provided !== undefined) patch.dinner_provided = Boolean(body.dinner_provided);
   if (body.parking_2w_paise !== undefined) patch.parking_2w_paise = parseNonNegInt(body.parking_2w_paise);
   if (body.parking_4w_paise !== undefined) patch.parking_4w_paise = parseNonNegInt(body.parking_4w_paise);
   if (body.base_ticket_paise !== undefined) patch.base_ticket_paise = parseNonNegInt(body.base_ticket_paise);
@@ -88,18 +92,23 @@ export async function PATCH(request: Request, ctx: Ctx) {
     .from('event_catalog')
     .update(patch)
     .eq('id', id)
-    .select(EVENT_SELECT_DIET)
+    .select(EVENT_SELECT_MEALS)
     .maybeSingle();
   let warning: string | null = null;
   if (error && missingColumn(error)) {
     const msg = error.message || '';
     const partyMissing = /party_min|party_max/i.test(msg);
     const guestMissing = /guest_fee_paise/i.test(msg);
+    const mealProvidedMissing = /lunch_provided|dinner_provided/i.test(msg);
     const retry = await admin
       .from('event_catalog')
       .update(
         withoutGuestFee(
-          withoutPartyLimits(withoutRefundEmail(withoutFeeBatch(withoutDietPrices(patch))))
+          withoutPartyLimits(
+            withoutRefundEmail(
+              withoutFeeBatch(withoutDietPrices(withoutMealProvided(patch)))
+            )
+          )
         )
       )
       .eq('id', id)
@@ -111,7 +120,9 @@ export async function PATCH(request: Request, ctx: Ctx) {
       ? PARTY_LIMITS_WARNING
       : guestMissing
         ? GUEST_FEE_WARNING
-        : DIET_PRICE_WARNING;
+        : mealProvidedMissing
+          ? MEAL_PROVIDED_WARNING
+          : DIET_PRICE_WARNING;
   }
 
   if (error || !data) {
@@ -124,6 +135,8 @@ export async function PATCH(request: Request, ctx: Ctx) {
     'dinner_paise',
     'lunch_nonveg_paise',
     'dinner_nonveg_paise',
+    'lunch_provided',
+    'dinner_provided',
     'parking_2w_paise',
     'parking_4w_paise',
     'base_ticket_paise',

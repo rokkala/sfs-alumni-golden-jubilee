@@ -8,7 +8,8 @@ import {
 import { selectCatalog } from '@/lib/events/catalog-select';
 import { type EventCatalog } from '@/lib/events/types';
 import { clampGuestMealsToPricing, eventToPricing } from '@/lib/events/pricing';
-import { clampPartySize, eventPartyBounds } from '@/lib/events/party-bounds';
+import { clampPartySize, clampPartySplit, eventPartyBounds } from '@/lib/events/party-bounds';
+import { missingColumn } from '@/lib/events/registration-code';
 import type { ExistingRegistrationRow } from '@/lib/events/existing-registration';
 import {
   calculateEventRegistrationCost,
@@ -32,6 +33,8 @@ import { normalizePhoneNumber, phoneValidationError, splitE164 } from '@/lib/pho
 import { createAdminClient } from '@/lib/supabase-admin';
 
 const REG_SELECT =
+  'id,event_id,number_of_guests,alumni_count,food_preference,parking_needed,lunch,dinner,guests,attending,phone_number,payment_status,total_cost_paise,amount_paid_paise';
+const REG_SELECT_LEGACY =
   'id,event_id,number_of_guests,food_preference,parking_needed,lunch,dinner,guests,attending,phone_number,payment_status,total_cost_paise,amount_paid_paise';
 
 function profilePayload(me: AlumniAccount) {
@@ -68,13 +71,21 @@ export async function getAccountRegistrationForEvent(
   if (!id) return { status: 400, payload: { error: 'eventId is required' } };
 
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from('event_registrations')
-    .select(REG_SELECT)
-    .eq('event_id', id)
-    .eq('account_id', me.id)
-    .in('payment_status', [...OPEN_PAYMENT_STATUSES])
-    .maybeSingle();
+  async function selectOpenReg(columns: string) {
+    return admin
+      .from('event_registrations')
+      .select(columns)
+      .eq('event_id', id)
+      .eq('account_id', me.id)
+      .in('payment_status', [...OPEN_PAYMENT_STATUSES])
+      .maybeSingle();
+  }
+  let { data, error } = await selectOpenReg(REG_SELECT);
+  if (error && missingColumn(error)) {
+    const legacy = await selectOpenReg(REG_SELECT_LEGACY);
+    data = legacy.data;
+    error = legacy.error;
+  }
 
   if (error) {
     console.error('reg get', error);
@@ -90,13 +101,10 @@ export async function getAccountRegistrationForEvent(
   let registrationRow = data;
   if (data) {
     await repriceEventRegistrations(id);
-    const refreshed = await admin
-      .from('event_registrations')
-      .select(REG_SELECT)
-      .eq('event_id', id)
-      .eq('account_id', me.id)
-      .in('payment_status', [...OPEN_PAYMENT_STATUSES])
-      .maybeSingle();
+    let refreshed = await selectOpenReg(REG_SELECT);
+    if (refreshed.error && missingColumn(refreshed.error)) {
+      refreshed = await selectOpenReg(REG_SELECT_LEGACY);
+    }
     if (!refreshed.error && refreshed.data) registrationRow = refreshed.data;
   }
 
@@ -191,17 +199,30 @@ export async function registerAccountForEvent(
     ? String(body.parking_needed)
     : 'none') as ParkingNeeded;
   const bounds = eventPartyBounds(catalog);
-  const rawCount = Math.floor(Number(body.number_of_guests));
-  const requested = Number.isFinite(rawCount) ? rawCount : bounds.min;
-  if (requested < bounds.min || requested > bounds.max) {
+  const rawAlumni = Math.floor(Number(body.alumni_count ?? body.people_count));
+  const rawGuestsOnly = Math.floor(Number(body.guest_count));
+  const hasSplit = Number.isFinite(rawAlumni) || Number.isFinite(rawGuestsOnly);
+  let peopleIn = Number.isFinite(rawAlumni) ? Math.max(0, rawAlumni) : 1;
+  let guestsIn = Number.isFinite(rawGuestsOnly) ? Math.max(0, rawGuestsOnly) : 0;
+  if (!hasSplit) {
+    const rawCount = Math.floor(Number(body.number_of_guests));
+    const requested = Number.isFinite(rawCount) ? rawCount : bounds.min;
+    const totalHint = clampPartySize(requested, bounds);
+    peopleIn = totalHint > 0 ? 1 : 0;
+    guestsIn = Math.max(0, totalHint - peopleIn);
+  }
+  const split = clampPartySplit(peopleIn, guestsIn, bounds);
+  const alumniCount = split.people;
+  const guestCountOnly = split.guests;
+  const peopleHint = split.total;
+  if (peopleHint < bounds.min || peopleHint > bounds.max) {
     return {
       status: 400,
       payload: {
-        error: `Number of people attending must be between ${bounds.min} and ${bounds.max}`,
+        error: `Total attending (people + guests) must be between ${bounds.min} and ${bounds.max}`,
       },
     };
   }
-  const peopleHint = clampPartySize(requested, bounds);
   const pricing = eventToPricing(catalog);
   const guests =
     peopleHint === 0
@@ -221,7 +242,7 @@ export async function registerAccountForEvent(
     return {
       status: 400,
       payload: {
-        error: `Number of people attending must be between ${bounds.min} and ${bounds.max}`,
+        error: `Total attending (people + guests) must be between ${bounds.min} and ${bounds.max}`,
       },
     };
   }
@@ -231,6 +252,8 @@ export async function registerAccountForEvent(
   const input = {
     guests,
     parkingNeeded,
+    alumniCount,
+    guestCount: guestCountOnly,
     batch: batchForFee,
   } satisfies CostCalculationInput;
   if (!validateRegistrationCost(pricing, input)) {
@@ -278,6 +301,7 @@ export async function registerAccountForEvent(
     account_id: me.id,
     phone_number: phone,
     number_of_guests: guests.length,
+    alumni_count: alumniCount,
     food_preference: summary.food_preference,
     parking_needed: input.parkingNeeded,
     lunch: summary.lunch,
@@ -292,17 +316,28 @@ export async function registerAccountForEvent(
 
   let regId = existing?.id;
   if (existing?.id) {
-    const { error } = await admin.from('event_registrations').update(row).eq('id', existing.id);
+    let { error } = await admin.from('event_registrations').update(row).eq('id', existing.id);
+    if (error && missingColumn(error)) {
+      const { alumni_count: _a, ...withoutAlumni } = row;
+      const retry = await admin.from('event_registrations').update(withoutAlumni).eq('id', existing.id);
+      error = retry.error;
+    }
     if (error) {
       console.error('reg update', error);
       return { status: 500, payload: { error: 'Could not update registration' } };
     }
   } else {
-    const { data: inserted, error } = await admin
+    let { data: inserted, error } = await admin
       .from('event_registrations')
       .insert(row)
       .select('id')
       .single();
+    if (error && missingColumn(error)) {
+      const { alumni_count: _a, ...withoutAlumni } = row;
+      const retry = await admin.from('event_registrations').insert(withoutAlumni).select('id').single();
+      inserted = retry.data;
+      error = retry.error;
+    }
     if (error) {
       console.error('reg insert', error);
       return {
@@ -313,7 +348,7 @@ export async function registerAccountForEvent(
         },
       };
     }
-    regId = inserted.id;
+    regId = inserted!.id;
   }
 
   const fullName = String(body.full_name || '').trim() || me.full_name;

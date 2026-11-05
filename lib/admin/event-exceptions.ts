@@ -1,3 +1,5 @@
+import { partySplitFromStored } from '@/lib/events/party-bounds';
+
 export type ExceptionKind =
   | 'balance_due'
   | 'status_mismatch'
@@ -53,7 +55,10 @@ export function classifyRegistration(row: ExceptionInput): ExceptionHit | null {
 
 export type MoneyTotals = {
   registration_count: number;
+  /** Total attending (people + guests). */
   people: number;
+  alumni_people: number;
+  accompanying_guests: number;
   paid_count: number;
   partial_count: number;
   pending_count: number;
@@ -67,6 +72,7 @@ export type MoneyTotals = {
 export type AggregateRow = {
   payment_status: string;
   number_of_guests: number;
+  alumni_count?: number | null;
   total_cost_paise: number;
   amount_paid_paise: number;
   checked_in_at?: string | null;
@@ -76,6 +82,8 @@ export function aggregateRegistrations(rows: AggregateRow[]): MoneyTotals {
   const totals: MoneyTotals = {
     registration_count: rows.length,
     people: 0,
+    alumni_people: 0,
+    accompanying_guests: 0,
     paid_count: 0,
     partial_count: 0,
     pending_count: 0,
@@ -89,7 +97,10 @@ export function aggregateRegistrations(rows: AggregateRow[]): MoneyTotals {
     const total = Math.max(0, Number(r.total_cost_paise) || 0);
     const paid = Math.max(0, Number(r.amount_paid_paise) || 0);
     const status = String(r.payment_status || '').toLowerCase();
-    totals.people += Math.max(0, Number(r.number_of_guests) || 0);
+    const split = partySplitFromStored(r.number_of_guests, r.alumni_count);
+    totals.people += split.total;
+    totals.alumni_people += split.people;
+    totals.accompanying_guests += split.guests;
     totals.total_cost_paise += total;
     totals.amount_paid_paise += paid;
     totals.amount_due_paise += amountDuePaise(total, paid);

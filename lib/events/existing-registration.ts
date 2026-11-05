@@ -9,9 +9,12 @@ import {
   type ParkingNeeded,
 } from '../registration';
 import { parseLocation } from '../registration-fields';
+import { MAX_ALUMNI_PER_REGISTRATION } from './party-bounds';
 
 export type ExistingRegistrationRow = {
   number_of_guests: number;
+  /** Alumni/people count; absent → treat as 1 when total ≥ 1. */
+  alumni_count?: number | null;
   food_preference: string | null;
   parking_needed: string;
   lunch: boolean;
@@ -37,6 +40,8 @@ export type RegistrationProfileSnapshot = {
 
 export type RegistrationFormChoices = {
   number_of_guests: number;
+  people_count: number;
+  guest_count: number;
   food_preference: FoodPreference;
   parking_needed: ParkingNeeded;
   lunch: boolean;
@@ -57,6 +62,8 @@ export type RegistrationPrefill = {
   city: string;
   country: string;
   number_of_guests: number;
+  people_count: number;
+  guest_count: number;
   food_preference: FoodPreference;
   parking_needed: ParkingNeeded;
   lunch: boolean;
@@ -93,8 +100,22 @@ export function registrationChoicesFromRow(
     : 'none';
   const guests = guestsForRow(row);
   const summary = legacySummaryFromGuests(guests);
+  const total = guests.length;
+  const people_count =
+    row.alumni_count != null && Number.isFinite(Number(row.alumni_count))
+      ? Math.min(
+          total,
+          MAX_ALUMNI_PER_REGISTRATION,
+          Math.max(0, Math.floor(Number(row.alumni_count)))
+        )
+      : total > 0
+        ? 1
+        : 0;
+  const guest_count = Math.max(0, total - people_count);
   return {
-    number_of_guests: guests.length,
+    number_of_guests: total,
+    people_count,
+    guest_count,
     food_preference: normalizeFoodPreference(
       summary.food_preference === 'mixed' ? guests[0]?.preference : summary.food_preference
     ),
@@ -129,6 +150,8 @@ export function mergeRegistrationPrefill(
     city: loc.city,
     country: loc.country,
     number_of_guests: guests.length,
+    people_count: choices?.people_count ?? (guests.length > 0 ? 1 : 0),
+    guest_count: choices?.guest_count ?? Math.max(0, guests.length - (guests.length > 0 ? 1 : 0)),
     food_preference: choices?.food_preference ?? 'veg',
     parking_needed: choices?.parking_needed ?? 'none',
     lunch: choices?.lunch ?? false,

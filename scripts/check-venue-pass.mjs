@@ -56,7 +56,7 @@ const owed = venuePassSummary({
 assert(owed.paid === false, 'a balance is not a paid pass');
 assert(owed.code === 'SFS-KEEP1', 'an existing id still shows so staff can look it up');
 assert(owed.meals === 'No meals', 'missing meals are explicit');
-assert(owed.parking === 'No vehicle', 'no parking is explicit');
+assert(owed.parking === 'No Parking needed', 'no parking is explicit');
 assert(owed.food === 'Non-veg', 'non-veg preference is shown');
 
 const noFood = venuePassSummary({

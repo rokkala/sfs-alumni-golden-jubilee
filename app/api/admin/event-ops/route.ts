@@ -13,6 +13,7 @@ type RegRow = {
   event_id: string;
   payment_status: string;
   number_of_guests: number;
+  alumni_count?: number | null;
   total_cost_paise: number;
   amount_paid_paise?: number;
   registration_code?: string | null;
@@ -28,12 +29,14 @@ function one<T>(v: T | T[] | null | undefined): T | null {
 
 async function loadRows(eventId: string): Promise<{ rows: RegRow[]; error: string | null }> {
   const admin = createAdminClient();
-  const selectWithCheckIn =
-    'id,event_id,payment_status,number_of_guests,total_cost_paise,amount_paid_paise,registration_code,checked_in_at,event_catalog(title),alumni_accounts(full_name,email)';
-  const selectBase =
-    'id,event_id,payment_status,number_of_guests,total_cost_paise,amount_paid_paise,registration_code,event_catalog(title),alumni_accounts(full_name,email)';
+  const selects = [
+    'id,event_id,payment_status,number_of_guests,alumni_count,total_cost_paise,amount_paid_paise,registration_code,checked_in_at,event_catalog(title),alumni_accounts(full_name,email)',
+    'id,event_id,payment_status,number_of_guests,alumni_count,total_cost_paise,amount_paid_paise,registration_code,event_catalog(title),alumni_accounts(full_name,email)',
+    'id,event_id,payment_status,number_of_guests,total_cost_paise,amount_paid_paise,registration_code,checked_in_at,event_catalog(title),alumni_accounts(full_name,email)',
+    'id,event_id,payment_status,number_of_guests,total_cost_paise,amount_paid_paise,registration_code,event_catalog(title),alumni_accounts(full_name,email)',
+  ];
 
-  for (const select of [selectWithCheckIn, selectBase]) {
+  for (const select of selects) {
     let query = admin.from('event_registrations').select(select).order('created_at', { ascending: false });
     if (eventId) query = query.eq('event_id', eventId);
     const { data, error } = await query;
@@ -57,6 +60,7 @@ export async function GET(request: Request) {
     rows.map((r) => ({
       payment_status: r.payment_status,
       number_of_guests: r.number_of_guests,
+      alumni_count: r.alumni_count,
       total_cost_paise: r.total_cost_paise,
       amount_paid_paise: Math.max(0, Number(r.amount_paid_paise) || 0),
       checked_in_at: r.checked_in_at ?? null,

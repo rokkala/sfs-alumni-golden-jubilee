@@ -77,7 +77,23 @@ assert(
     { ...jubilee, base_ticket_paise: 10000, guest_fee_paise: 5000 },
     input
   ).guestCost === 5000,
-  'guestCost is guest fee × (people − 1)'
+  'guestCost is guest fee × accompanying guests (legacy 1 alumnus)'
+);
+assert(
+  calculateEventRegistrationCost(
+    { ...jubilee, base_ticket_paise: 10000, guest_fee_paise: 5000 },
+    {
+      guests: [
+        { preference: 'veg', lunch: true, dinner: true },
+        { preference: 'veg', lunch: true, dinner: true },
+        { preference: 'veg', lunch: true, dinner: true },
+      ],
+      parkingNeeded: 'none',
+      alumniCount: 2,
+      guestCount: 1,
+    }
+  ) === 265000,
+  '2 people × ₹100 + 1 guest × ₹50 + 3× meals = 265000'
 );
 const bd = getEventCostBreakdown(jubilee, input);
 assert(bd.totalCost === 180000, 'breakdown total');

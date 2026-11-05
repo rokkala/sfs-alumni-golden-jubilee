@@ -22,6 +22,9 @@ type Row = {
   email: string;
   batch: number | null;
   number_of_guests: number;
+  people_count?: number;
+  guest_count?: number;
+  attending_total?: number;
   lunch: boolean;
   dinner: boolean;
   food_preference?: string | null;
@@ -41,6 +44,13 @@ function mealLine(r: Row): string {
       ? normalizeGuests(r.guests, r.number_of_guests)
       : guestsFromLegacy(r.number_of_guests, r.food_preference, r.lunch, r.dinner);
   return formatGuestMealCounts(guestMealCounts(guests));
+}
+
+function partyCells(r: Row) {
+  const total = r.attending_total ?? r.number_of_guests;
+  const people = r.people_count ?? (total > 0 ? 1 : 0);
+  const guests = r.guest_count ?? Math.max(0, total - people);
+  return { people, guests, total };
 }
 
 export default function AdminRegistrationsInner() {
@@ -170,10 +180,12 @@ export default function AdminRegistrationsInner() {
                 <th className="px-4 py-3 font-medium">Alumnus</th>
                 <th className="px-4 py-3 font-medium">Batch</th>
                 <th className="px-4 py-3 font-medium">Event</th>
+                <th className="px-4 py-3 font-medium">People</th>
                 <th className="px-4 py-3 font-medium">Guests</th>
+                <th className="px-4 py-3 font-medium">Total</th>
                 <th className="px-4 py-3 font-medium">Meals</th>
                 <th className="px-4 py-3 font-medium">Parking</th>
-                <th className="px-4 py-3 font-medium">Total</th>
+                <th className="px-4 py-3 font-medium">Billed</th>
                 <th className="px-4 py-3 font-medium">Paid</th>
                 <th className="px-4 py-3 font-medium">Due</th>
                 <th className="px-4 py-3 font-medium">Status</th>
@@ -183,7 +195,7 @@ export default function AdminRegistrationsInner() {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-4 py-8 text-on-surface-variant bg-surface-ivory">
+                  <td colSpan={14} className="px-4 py-8 text-on-surface-variant bg-surface-ivory">
                     No registrations match.
                   </td>
                 </tr>
@@ -202,7 +214,16 @@ export default function AdminRegistrationsInner() {
                       </td>
                       <td className="px-4 py-3 tabular-nums">{r.batch ?? '—'}</td>
                       <td className="px-4 py-3 text-navy-subtle">{r.event_title}</td>
-                      <td className="px-4 py-3">{r.number_of_guests}</td>
+                      {(() => {
+                        const p = partyCells(r);
+                        return (
+                          <>
+                            <td className="px-4 py-3 tabular-nums">{p.people}</td>
+                            <td className="px-4 py-3 tabular-nums">{p.guests}</td>
+                            <td className="px-4 py-3 tabular-nums font-medium">{p.total}</td>
+                          </>
+                        );
+                      })()}
                       <td className="px-4 py-3 text-body-sm">{mealLine(r)}</td>
                       <td className="px-4 py-3">{r.parking_needed}</td>
                       <td className="px-4 py-3 tabular-nums font-medium text-primary">
@@ -284,10 +305,12 @@ export default function AdminRegistrationsInner() {
                   <th>Name</th>
                   <th>Reg ID</th>
                   <th>Event</th>
+                  <th>People</th>
                   <th>Guests</th>
+                  <th>Total</th>
                   <th>Meals</th>
                   <th>Parking</th>
-                  <th>Total</th>
+                  <th>Billed</th>
                   <th>Paid</th>
                   <th>Due</th>
                   <th>Status</th>
@@ -302,7 +325,16 @@ export default function AdminRegistrationsInner() {
                       <td>{r.full_name}</td>
                       <td>{r.registration_code || '—'}</td>
                       <td>{r.event_title}</td>
-                      <td>{r.number_of_guests}</td>
+                      {(() => {
+                        const p = partyCells(r);
+                        return (
+                          <>
+                            <td>{p.people}</td>
+                            <td>{p.guests}</td>
+                            <td>{p.total}</td>
+                          </>
+                        );
+                      })()}
                       <td>{mealLine(r)}</td>
                       <td>{r.parking_needed}</td>
                       <td>{formatCostForDisplay(r.total_cost_paise)}</td>

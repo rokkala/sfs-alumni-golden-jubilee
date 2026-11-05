@@ -1,33 +1,16 @@
 /**
  * Self-check for event party min/max helpers.
- * Run: node scripts/check-party-bounds.mjs
+ * Run: node --experimental-strip-types scripts/check-party-bounds.mjs
  */
 import assert from 'assert';
-import { createRequire } from 'module';
-import { pathToFileURL } from 'url';
-import path from 'path';
+import {
+  clampPartySize,
+  clampPartySplit,
+  eventPartyBounds,
+  MAX_ALUMNI_PER_REGISTRATION,
+} from '../lib/events/party-bounds.ts';
 
-// Load TS via dynamic transpile-free duplicate of logic (keep in sync with lib/events/party-bounds.ts)
-const DEFAULT_PARTY_MIN = 1;
-const DEFAULT_PARTY_MAX = 20;
-
-function eventPartyBounds(event) {
-  let min = Math.floor(Number(event?.party_min));
-  if (!Number.isFinite(min) || min < 0) min = DEFAULT_PARTY_MIN;
-  let max = Math.floor(Number(event?.party_max));
-  if (!Number.isFinite(max) || max < 0) max = DEFAULT_PARTY_MAX;
-  if (max < min) max = min;
-  return { min, max };
-}
-
-function clampPartySize(raw, bounds) {
-  const n = Math.floor(Number(raw));
-  if (!Number.isFinite(n)) return bounds.min;
-  if (n < bounds.min) return bounds.min;
-  if (n > bounds.max) return bounds.max;
-  return n;
-}
-
+assert.equal(MAX_ALUMNI_PER_REGISTRATION, 1, 'alumni per registration is 0 or 1');
 assert.deepEqual(eventPartyBounds(null), { min: 1, max: 20 });
 assert.deepEqual(eventPartyBounds({ party_min: 0, party_max: 8 }), { min: 0, max: 8 });
 assert.deepEqual(eventPartyBounds({ party_min: 2, party_max: 8 }), { min: 2, max: 8 });
@@ -36,5 +19,16 @@ assert.equal(clampPartySize(0, { min: 0, max: 6 }), 0);
 assert.equal(clampPartySize(0, { min: 2, max: 6 }), 2);
 assert.equal(clampPartySize(99, { min: 2, max: 6 }), 6);
 assert.equal(clampPartySize(4, { min: 2, max: 6 }), 4);
+
+const capped = clampPartySplit(5, 2, { min: 1, max: 20 });
+assert.equal(capped.people, 1, 'alumni capped at 1');
+assert.equal(capped.guests, 2, 'guests unchanged when under max');
+assert.equal(capped.total, 3, 'total = 1 alumni + guests');
+
+const zeroOk = clampPartySplit(0, 0, { min: 0, max: 8 });
+assert.equal(zeroOk.people, 0, 'alumni may be 0 when party min is 0');
+
+const forceOne = clampPartySplit(0, 3, { min: 1, max: 8 });
+assert.equal(forceOne.people, 1, 'min≥1 forces one alumnus');
 
 console.log('PASS party-bounds self-check');

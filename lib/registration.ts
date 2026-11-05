@@ -115,9 +115,43 @@ export type CostCalculationInput = {
   parkingNeeded: ParkingNeeded;
   foodPreference?: FoodPreference;
   guests?: GuestChoice[];
+  /** Alumni / people count (fee × alumnus rate). */
+  alumniCount?: number | null;
+  /** Accompanying guests (fee × guest rate). */
+  guestCount?: number | null;
   /** Alumnus batch year — used for registration-fee range exceptions. */
   batch?: number | null;
 };
+
+/** Resolve people vs guests for fees. Legacy (no split) = 1 alumnus + rest guests. */
+export function resolvePartySplit(
+  totalPeople: number,
+  alumniCount?: number | null,
+  guestCount?: number | null
+): { alumni: number; guests: number } {
+  const total = Math.max(0, Math.floor(Number(totalPeople) || 0));
+  const aSet = alumniCount != null && Number.isFinite(Number(alumniCount));
+  const gSet = guestCount != null && Number.isFinite(Number(guestCount));
+  if (aSet || gSet) {
+    let alumni = aSet ? Math.max(0, Math.floor(Number(alumniCount))) : null;
+    let guests = gSet ? Math.max(0, Math.floor(Number(guestCount))) : null;
+    if (alumni != null && guests != null) {
+      if (alumni + guests !== total) {
+        alumni = Math.min(alumni, total);
+        guests = total - alumni;
+      }
+      return { alumni, guests };
+    }
+    if (alumni != null) {
+      alumni = Math.min(alumni, total);
+      return { alumni, guests: total - alumni };
+    }
+    guests = Math.min(guests as number, total);
+    return { alumni: total - guests, guests };
+  }
+  if (total <= 0) return { alumni: 0, guests: 0 };
+  return { alumni: 1, guests: total - 1 };
+}
 
 export type EventPricing = {
   lunch_paise: number;
@@ -126,10 +160,14 @@ export type EventPricing = {
   lunch_nonveg_paise?: number | null;
   /** Absent means non-veg dinner uses the veg dinner rate. */
   dinner_nonveg_paise?: number | null;
+  /** When true, lunch is offered even at ₹0 (for reporting). Absent = derive from rates. */
+  lunch_provided?: boolean | null;
+  /** When true, dinner is offered even at ₹0 (for reporting). Absent = derive from rates. */
+  dinner_provided?: boolean | null;
   parking_2w_paise: number;
   parking_4w_paise: number;
   base_ticket_paise: number;
-  /** Fee per accompanying guest (people − 1). Absent/null = 0. */
+  /** Fee per accompanying guest. Absent/null = 0. */
   guest_fee_paise?: number | null;
   /** Inclusive batch bounds for alternate fee; both null = everyone pays base_ticket. */
   fee_batch_from?: number | null;
@@ -225,7 +263,6 @@ function resolveGuests(input: CostCalculationInput): GuestChoice[] {
 }
 
 function guestsForPricing(_pricing: EventPricing, input: CostCalculationInput): GuestChoice[] {
-  // Keep lunch/dinner selections even when priced at ₹0 (needed for headcount).
   return resolveGuests(input).map(normalizeGuest);
 }
 
@@ -258,10 +295,10 @@ export function getEventCostBreakdown(
         : 0;
 
   const baseRate = effectiveBaseTicketPaise(pricing, input.batch);
-  const baseCost = baseRate;
+  const split = resolvePartySplit(totalPeople, input.alumniCount, input.guestCount);
+  const baseCost = split.alumni * baseRate;
   const guestRate = Math.max(0, Number(pricing.guest_fee_paise) || 0);
-  const extraGuests = Math.max(0, totalPeople - 1);
-  const guestCost = extraGuests * guestRate;
+  const guestCost = split.guests * guestRate;
   const counts = guestMealCounts(guests);
 
   const mealBits: string[] = [];
@@ -284,18 +321,19 @@ export function getEventCostBreakdown(
     );
   }
 
+  const partyLabel = `${split.alumni} people · ${split.guests} guests`;
   let details =
     mealBits.length > 0
-      ? `${totalPeople} people · ${mealBits.join(' · ')}`
-      : `${totalPeople} people · No meals`;
+      ? `${partyLabel} · ${mealBits.join(' · ')}`
+      : `${partyLabel} · No meals`;
   if (parkingCost > 0) {
     details += ` · parking ₹${(parkingCost / 100).toFixed(0)}`;
   }
-  if (baseRate > 0) {
-    details += ` · registration fee ₹${(baseRate / 100).toFixed(0)}`;
+  if (baseRate > 0 && split.alumni > 0) {
+    details += ` · registration fee ₹${(baseRate / 100).toFixed(0)} ×${split.alumni}`;
   }
   if (guestCost > 0) {
-    details += ` · guest fee ₹${(guestRate / 100).toFixed(0)} ×${extraGuests}`;
+    details += ` · guest fee ₹${(guestRate / 100).toFixed(0)} ×${split.guests}`;
   }
 
   return {

@@ -11,6 +11,7 @@ import {
 
 type RepriceRow = {
   number_of_guests: number;
+  alumni_count?: number | null;
   lunch: boolean;
   dinner: boolean;
   parking_needed: string;
@@ -29,9 +30,15 @@ export function repriceRegistration(pricing: EventPricing, row: RepriceRow) {
     Array.isArray(row.guests) && row.guests.length > 0
       ? normalizeGuests(row.guests, people)
       : guestsFromLegacy(people, row.food_preference, Boolean(row.lunch), Boolean(row.dinner));
+  const alumniCount =
+    row.alumni_count != null && Number.isFinite(Number(row.alumni_count))
+      ? Math.max(0, Math.floor(Number(row.alumni_count)))
+      : null;
   const total_cost_paise = calculateEventRegistrationCost(pricing, {
     guests,
     parkingNeeded,
+    alumniCount,
+    guestCount: alumniCount != null ? Math.max(0, guests.length - alumniCount) : null,
     batch: row.batch ?? null,
   });
   const amount_paid_paise = Math.max(0, Math.floor(Number(row.amount_paid_paise) || 0));

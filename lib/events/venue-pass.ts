@@ -46,7 +46,7 @@ export function venuePassSummary(reg: VenuePassInput): VenuePassSummary {
       ? '2-wheeler'
       : reg.parking_needed === '4-wheeler'
         ? '4-wheeler'
-        : 'No vehicle';
+        : 'No Parking needed';
   const food =
     summary.food_preference === 'mixed'
       ? 'Mixed'

@@ -3,18 +3,21 @@ import { requireVerifiedAdmin } from '@/lib/auth/admin-guard';
 import {
   DIET_PRICE_WARNING,
   GUEST_FEE_WARNING,
+  MEAL_PROVIDED_WARNING,
   PARTY_LIMITS_WARNING,
   selectCatalog,
   withoutDietPrices,
   withoutFeeBatch,
   withoutGuestFee,
+  withoutMealProvided,
   withoutPartyLimits,
   withoutRefundEmail,
 } from '@/lib/events/catalog-select';
 import { DEFAULT_PARTY_MAX, DEFAULT_PARTY_MIN, parsePartyBound } from '@/lib/events/party-bounds';
 import { missingColumn } from '@/lib/events/registration-code';
 import { normalizeRefundEmail } from '@/lib/events/refund-mailto';
-import { EVENT_SELECT, EVENT_SELECT_CORE } from '@/lib/events/types';
+import { EVENT_SELECT_MEALS } from '@/lib/events/catalog-select';
+import { EVENT_SELECT_CORE } from '@/lib/events/types';
 import { parseNonNegInt, parseOptionalBatchYear } from '@/lib/events/pricing';
 import { createAdminClient } from '@/lib/supabase-admin';
 
@@ -61,6 +64,8 @@ export async function POST(request: Request) {
     dinner_paise: parseNonNegInt(body.dinner_paise),
     lunch_nonveg_paise: parseNonNegInt(body.lunch_nonveg_paise),
     dinner_nonveg_paise: parseNonNegInt(body.dinner_nonveg_paise),
+    lunch_provided: Boolean(body.lunch_provided),
+    dinner_provided: Boolean(body.dinner_provided),
     parking_2w_paise: parseNonNegInt(body.parking_2w_paise),
     parking_4w_paise: parseNonNegInt(body.parking_4w_paise),
     base_ticket_paise: parseNonNegInt(body.base_ticket_paise),
@@ -88,14 +93,19 @@ export async function POST(request: Request) {
     await admin.from('event_catalog').update({ is_primary: false }).eq('is_primary', true);
   }
 
-  let { data, error } = await admin.from('event_catalog').insert(row).select(EVENT_SELECT).single();
+  let { data, error } = await admin.from('event_catalog').insert(row).select(EVENT_SELECT_MEALS).single();
   let warning: string | null = null;
   if (error && missingColumn(error)) {
     const msg = error.message || '';
     const partyMissing = /party_min|party_max/i.test(msg);
     const guestMissing = /guest_fee_paise/i.test(msg);
+    const mealProvidedMissing = /lunch_provided|dinner_provided/i.test(msg);
     const stripped = withoutGuestFee(
-      withoutPartyLimits(withoutRefundEmail(withoutFeeBatch(withoutDietPrices(row))))
+      withoutPartyLimits(
+        withoutRefundEmail(
+          withoutFeeBatch(withoutDietPrices(withoutMealProvided(row)))
+        )
+      )
     );
     const retry = await admin
       .from('event_catalog')
@@ -108,7 +118,9 @@ export async function POST(request: Request) {
       ? PARTY_LIMITS_WARNING
       : guestMissing
         ? GUEST_FEE_WARNING
-        : DIET_PRICE_WARNING;
+        : mealProvidedMissing
+          ? MEAL_PROVIDED_WARNING
+          : DIET_PRICE_WARNING;
   }
   if (error) {
     console.error('admin events create', error);
