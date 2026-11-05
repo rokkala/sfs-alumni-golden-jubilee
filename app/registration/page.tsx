@@ -1,7 +1,7 @@
 // app/registration/page.tsx
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
@@ -41,6 +41,7 @@ import {
     mealIsOffered,
     mealPriceSummary,
 } from '@/lib/events/pricing';
+import { clampPartySize, eventPartyBounds } from '@/lib/events/party-bounds';
 import { mergeRegistrationPrefill } from '@/lib/events/existing-registration';
 import type { EventCatalog } from '@/lib/events/types';
 import { openRazorpayCheckout } from '@/lib/payments/checkout-client';
@@ -80,8 +81,12 @@ interface PreRegistrationData {
 
 const DEFAULT_GUEST: GuestChoice = { preference: 'veg', lunch: false, dinner: false };
 
-function resizeGuests(guests: GuestChoice[], n: number): GuestChoice[] {
-    const size = partySize(n);
+function resizeGuests(
+    guests: GuestChoice[],
+    n: number,
+    bounds?: { min: number; max: number }
+): GuestChoice[] {
+    const size = bounds ? clampPartySize(n, bounds) : partySize(n);
     if (guests.length === size) return guests;
     if (guests.length > size) return guests.slice(0, size);
     return [
@@ -167,6 +172,17 @@ function RegistrationPageInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const supabase = createClient();
+    const partyBounds = useMemo(() => eventPartyBounds(event), [event]);
+
+    useEffect(() => {
+        if (!event) return;
+        const bounds = eventPartyBounds(event);
+        setFormData((prev) => {
+            if (prev.guests.length >= bounds.min && prev.guests.length <= bounds.max) return prev;
+            const guests = resizeGuests(prev.guests, prev.guests.length, bounds);
+            return { ...prev, number_of_guests: guests.length, guests };
+        });
+    }, [event]);
 
     useEffect(() => {
         async function loadEvent() {
@@ -1204,15 +1220,19 @@ function RegistrationPageInner() {
                                 <div className="space-y-4">
                                     <div className="flex flex-col">
                                         <label className="text-label-md text-primary mb-2 uppercase tracking-wider">
-                                            Number of people *
+                                            Number of People Attending the Meet *
                                         </label>
                                         <input
                                             type="number"
-                                            min={1}
+                                            min={partyBounds.min}
+                                            max={partyBounds.max}
                                             value={formData.guests.length}
                                             onChange={(e) => {
-                                                const n = partySize(parseInt(e.target.value, 10));
-                                                const guests = resizeGuests(formData.guests, n);
+                                                const guests = resizeGuests(
+                                                    formData.guests,
+                                                    parseInt(e.target.value, 10),
+                                                    partyBounds
+                                                );
                                                 setFormData({
                                                     ...formData,
                                                     number_of_guests: guests.length,
@@ -1224,7 +1244,8 @@ function RegistrationPageInner() {
                                             className="px-4 py-3.5 rounded-lg border border-outline-variant text-body-sm bg-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all disabled:opacity-50"
                                         />
                                         <p className="text-label-sm text-on-surface-variant mt-1">
-                                            Include yourself. Set food and meals for each person below.
+                                            Include yourself ({partyBounds.min}–{partyBounds.max}{' '}
+                                            people). Set food and meals for each person below.
                                         </p>
                                     </div>
 
@@ -1557,19 +1578,22 @@ function RegistrationPageInner() {
                             <div className="flex items-center justify-between gap-3">
                                 <div>
                                     <div className="text-label-md text-primary uppercase tracking-wider">
-                                        People attending
+                                        Number of People Attending the Meet
                                     </div>
-                                    <p className="text-label-sm text-on-surface-variant mt-1">Includes you</p>
+                                    <p className="text-label-sm text-on-surface-variant mt-1">
+                                        Includes you ({partyBounds.min}–{partyBounds.max})
+                                    </p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button
                                         type="button"
                                         aria-label="Fewer people"
-                                        disabled={busy || formData.guests.length <= 1}
+                                        disabled={busy || formData.guests.length <= partyBounds.min}
                                         onClick={() => {
                                             const guests = resizeGuests(
                                                 formData.guests,
-                                                Math.max(1, formData.guests.length - 1)
+                                                formData.guests.length - 1,
+                                                partyBounds
                                             );
                                             setFormData({
                                                 ...formData,
@@ -1587,11 +1611,12 @@ function RegistrationPageInner() {
                                     <button
                                         type="button"
                                         aria-label="More people"
-                                        disabled={busy}
+                                        disabled={busy || formData.guests.length >= partyBounds.max}
                                         onClick={() => {
                                             const guests = resizeGuests(
                                                 formData.guests,
-                                                formData.guests.length + 1
+                                                formData.guests.length + 1,
+                                                partyBounds
                                             );
                                             setFormData({
                                                 ...formData,

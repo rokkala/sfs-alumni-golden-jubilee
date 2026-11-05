@@ -3,14 +3,17 @@ import { requireVerifiedAdmin } from '@/lib/auth/admin-guard';
 import {
   DIET_PRICE_WARNING,
   EVENT_SELECT_DIET,
+  PARTY_LIMITS_WARNING,
   selectCatalog,
   withoutDietPrices,
   withoutFeeBatch,
+  withoutPartyLimits,
   withoutRefundEmail,
 } from '@/lib/events/catalog-select';
+import { DEFAULT_PARTY_MAX, DEFAULT_PARTY_MIN, parsePartyBound } from '@/lib/events/party-bounds';
 import { missingColumn } from '@/lib/events/registration-code';
 import { normalizeRefundEmail } from '@/lib/events/refund-mailto';
-import { EVENT_SELECT } from '@/lib/events/types';
+import { EVENT_SELECT_CORE } from '@/lib/events/types';
 import { parseNonNegInt, parseOptionalBatchYear } from '@/lib/events/pricing';
 import { repriceEventRegistrations } from '@/lib/events/reprice';
 import { createAdminClient } from '@/lib/supabase-admin';
@@ -55,10 +58,22 @@ export async function PATCH(request: Request, ctx: Ctx) {
   if (body.fee_batch_to !== undefined) patch.fee_batch_to = parseOptionalBatchYear(body.fee_batch_to);
   if (body.fee_batch_paise !== undefined) patch.fee_batch_paise = parseNonNegInt(body.fee_batch_paise);
   if (body.refund_email !== undefined) patch.refund_email = normalizeRefundEmail(body.refund_email);
+  if (body.party_min !== undefined) patch.party_min = parsePartyBound(body.party_min, DEFAULT_PARTY_MIN);
+  if (body.party_max !== undefined) patch.party_max = parsePartyBound(body.party_max, DEFAULT_PARTY_MAX);
   if (body.is_primary !== undefined) patch.is_primary = Boolean(body.is_primary);
 
   if (patch.title === '' || patch.summary === '') {
     return NextResponse.json({ error: 'Title and summary cannot be empty' }, { status: 400 });
+  }
+  if (
+    typeof patch.party_min === 'number' &&
+    typeof patch.party_max === 'number' &&
+    patch.party_min > patch.party_max
+  ) {
+    return NextResponse.json(
+      { error: 'Min people attending cannot be greater than max' },
+      { status: 400 }
+    );
   }
 
   const admin = createAdminClient();
@@ -74,15 +89,16 @@ export async function PATCH(request: Request, ctx: Ctx) {
     .maybeSingle();
   let warning: string | null = null;
   if (error && missingColumn(error)) {
+    const partyMissing = /party_min|party_max/i.test(error.message || '');
     const retry = await admin
       .from('event_catalog')
-      .update(withoutRefundEmail(withoutFeeBatch(withoutDietPrices(patch))))
+      .update(withoutPartyLimits(withoutRefundEmail(withoutFeeBatch(withoutDietPrices(patch)))))
       .eq('id', id)
-      .select(EVENT_SELECT)
+      .select(EVENT_SELECT_CORE)
       .maybeSingle();
     data = retry.data as unknown as typeof data;
     error = retry.error;
-    warning = DIET_PRICE_WARNING;
+    warning = partyMissing ? PARTY_LIMITS_WARNING : DIET_PRICE_WARNING;
   }
 
   if (error || !data) {

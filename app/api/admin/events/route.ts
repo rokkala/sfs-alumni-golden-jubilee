@@ -2,14 +2,17 @@ import { NextResponse } from 'next/server';
 import { requireVerifiedAdmin } from '@/lib/auth/admin-guard';
 import {
   DIET_PRICE_WARNING,
+  PARTY_LIMITS_WARNING,
   selectCatalog,
   withoutDietPrices,
   withoutFeeBatch,
+  withoutPartyLimits,
   withoutRefundEmail,
 } from '@/lib/events/catalog-select';
+import { DEFAULT_PARTY_MAX, DEFAULT_PARTY_MIN, parsePartyBound } from '@/lib/events/party-bounds';
 import { missingColumn } from '@/lib/events/registration-code';
 import { normalizeRefundEmail } from '@/lib/events/refund-mailto';
-import { EVENT_SELECT } from '@/lib/events/types';
+import { EVENT_SELECT, EVENT_SELECT_CORE } from '@/lib/events/types';
 import { parseNonNegInt, parseOptionalBatchYear } from '@/lib/events/pricing';
 import { createAdminClient } from '@/lib/supabase-admin';
 
@@ -63,10 +66,19 @@ export async function POST(request: Request) {
     fee_batch_to: parseOptionalBatchYear(body.fee_batch_to),
     fee_batch_paise: parseNonNegInt(body.fee_batch_paise),
     refund_email: normalizeRefundEmail(body.refund_email),
+    party_min: parsePartyBound(body.party_min, DEFAULT_PARTY_MIN),
+    party_max: parsePartyBound(body.party_max, DEFAULT_PARTY_MAX),
     is_primary: Boolean(body.is_primary),
     created_by: me.id,
     updated_at: new Date().toISOString(),
   };
+
+  if (row.party_min > row.party_max) {
+    return NextResponse.json(
+      { error: 'Min people attending cannot be greater than max' },
+      { status: 400 }
+    );
+  }
 
   const admin = createAdminClient();
   if (row.is_primary) {
@@ -76,11 +88,18 @@ export async function POST(request: Request) {
   let { data, error } = await admin.from('event_catalog').insert(row).select(EVENT_SELECT).single();
   let warning: string | null = null;
   if (error && missingColumn(error)) {
-    const stripped = withoutRefundEmail(withoutFeeBatch(withoutDietPrices(row)));
-    const retry = await admin.from('event_catalog').insert(stripped).select(EVENT_SELECT).single();
+    const partyMissing = /party_min|party_max/i.test(error.message || '');
+    const stripped = withoutPartyLimits(
+      withoutRefundEmail(withoutFeeBatch(withoutDietPrices(row)))
+    );
+    const retry = await admin
+      .from('event_catalog')
+      .insert(stripped)
+      .select(EVENT_SELECT_CORE)
+      .single();
     data = retry.data;
     error = retry.error;
-    warning = DIET_PRICE_WARNING;
+    warning = partyMissing ? PARTY_LIMITS_WARNING : DIET_PRICE_WARNING;
   }
   if (error) {
     console.error('admin events create', error);

@@ -30,6 +30,8 @@ type FormState = {
   fee_batch_to: string;
   fee_batch_rupees: string;
   refund_email: string;
+  party_min: string;
+  party_max: string;
 };
 
 function toLocalInput(iso: string | null | undefined) {
@@ -70,6 +72,8 @@ function initialFrom(event?: EventCatalog | null): FormState {
     fee_batch_to: event?.fee_batch_to != null ? String(event.fee_batch_to) : '',
     fee_batch_rupees: paiseToRupeesField(event?.fee_batch_paise ?? 0),
     refund_email: event?.refund_email || '',
+    party_min: String(event?.party_min ?? 1),
+    party_max: String(event?.party_max ?? 20),
   };
 }
 
@@ -137,6 +141,13 @@ export default function AdminEventForm({ event }: { event?: EventCatalog | null 
     setBusy(true);
     setError('');
     const pricing = pricingFromForm(form);
+    const partyMin = Math.max(0, Math.floor(Number(form.party_min)));
+    const partyMax = Math.max(0, Math.floor(Number(form.party_max) || 20));
+    if (!Number.isFinite(partyMin) || !Number.isFinite(partyMax) || partyMin > partyMax) {
+      setError('Min people attending cannot be greater than max');
+      setBusy(false);
+      return;
+    }
     const payload = {
       title: form.title.trim(),
       summary: form.summary.trim(),
@@ -147,6 +158,8 @@ export default function AdminEventForm({ event }: { event?: EventCatalog | null 
       published: form.published,
       is_primary: form.is_primary,
       refund_email: form.refund_email.trim() || null,
+      party_min: partyMin,
+      party_max: partyMax,
       ...pricing,
     };
 
@@ -302,6 +315,49 @@ export default function AdminEventForm({ event }: { event?: EventCatalog | null 
                 />
               </div>
             ))}
+          </div>
+          <div className="rounded-xl border border-jubilee-gold-light/80 bg-surface-paper p-4 space-y-3">
+            <p className="text-label-sm text-jubilee-gold-deep font-bold uppercase tracking-wide">
+              People attending
+            </p>
+            <p className="text-body-sm text-on-surface-variant">
+              Min and max for “Number of People Attending the Meet” on registration (includes the
+              alumnus).
+            </p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className={label} htmlFor="party_min">
+                  Min people
+                </label>
+                <input
+                  id="party_min"
+                  type="number"
+                  min={0}
+                  step="1"
+                  inputMode="numeric"
+                  required
+                  className={field}
+                  value={form.party_min}
+                  onChange={(e) => setField('party_min', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={label} htmlFor="party_max">
+                  Max people
+                </label>
+                <input
+                  id="party_max"
+                  type="number"
+                  min={1}
+                  step="1"
+                  inputMode="numeric"
+                  required
+                  className={field}
+                  value={form.party_max}
+                  onChange={(e) => setField('party_max', e.target.value)}
+                />
+              </div>
+            </div>
           </div>
           <div className="rounded-xl border border-jubilee-gold-light/80 bg-surface-paper p-4 space-y-3">
             <p className="text-label-sm text-jubilee-gold-deep font-bold uppercase tracking-wide">

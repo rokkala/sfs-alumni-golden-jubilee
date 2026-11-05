@@ -8,13 +8,13 @@ import {
 import { selectCatalog } from '@/lib/events/catalog-select';
 import { type EventCatalog } from '@/lib/events/types';
 import { clampGuestMealsToPricing, eventToPricing } from '@/lib/events/pricing';
+import { clampPartySize, eventPartyBounds } from '@/lib/events/party-bounds';
 import type { ExistingRegistrationRow } from '@/lib/events/existing-registration';
 import {
   calculateEventRegistrationCost,
   guestsFromLegacy,
   legacySummaryFromGuests,
   normalizeGuests,
-  partySize,
   validateRegistrationCost,
   type CostCalculationInput,
   type ParkingNeeded,
@@ -190,14 +190,41 @@ export async function registerAccountForEvent(
   const parkingNeeded = (['none', '2-wheeler', '4-wheeler'].includes(String(body.parking_needed))
     ? String(body.parking_needed)
     : 'none') as ParkingNeeded;
-  const peopleHint = partySize(Number(body.number_of_guests));
+  const bounds = eventPartyBounds(catalog);
+  const rawCount = Math.floor(Number(body.number_of_guests));
+  const requested = Number.isFinite(rawCount) ? rawCount : bounds.min;
+  if (requested < bounds.min || requested > bounds.max) {
+    return {
+      status: 400,
+      payload: {
+        error: `Number of people attending must be between ${bounds.min} and ${bounds.max}`,
+      },
+    };
+  }
+  const peopleHint = clampPartySize(requested, bounds);
   const pricing = eventToPricing(catalog);
-  const guests = clampGuestMealsToPricing(
-    pricing,
-    Array.isArray(body.guests) && body.guests.length > 0
-      ? normalizeGuests(body.guests, peopleHint)
-      : guestsFromLegacy(peopleHint, body.food_preference, Boolean(body.lunch), Boolean(body.dinner))
-  );
+  const guests =
+    peopleHint === 0
+      ? []
+      : clampGuestMealsToPricing(
+          pricing,
+          Array.isArray(body.guests) && body.guests.length > 0
+            ? normalizeGuests(body.guests, peopleHint)
+            : guestsFromLegacy(
+                peopleHint,
+                body.food_preference,
+                Boolean(body.lunch),
+                Boolean(body.dinner)
+              )
+        );
+  if (guests.length < bounds.min || guests.length > bounds.max) {
+    return {
+      status: 400,
+      payload: {
+        error: `Number of people attending must be between ${bounds.min} and ${bounds.max}`,
+      },
+    };
+  }
   const summary = legacySummaryFromGuests(guests);
   const batchRawForFee = body.batch != null && body.batch !== '' ? Number(body.batch) : null;
   const batchForFee = isValidBatch(batchRawForFee) ? batchRawForFee : me.batch;

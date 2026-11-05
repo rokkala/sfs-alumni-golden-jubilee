@@ -7,6 +7,12 @@ function missingColumn(error: { code?: string; message?: string } | null): boole
   return error.code === 'PGRST204' || error.code === '42703' || /column/i.test(message);
 }
 
+export type LoginAccountRow = {
+  id: string;
+  email: string;
+  password_hash: string;
+};
+
 export type RecoverAccountRow = {
   id: string;
   email: string;
@@ -18,12 +24,67 @@ export type RecoverAccountRow = {
   recovery_a2_hash: string | null;
 };
 
+const LOGIN_SELECT = 'id,email,password_hash';
 const RECOVER_SELECT =
   'id,email,phone_number,batch,recovery_q1,recovery_a1_hash,recovery_q2,recovery_a2_hash';
 
-/** Lookup by username, then email. Used by login-adjacent recover flows. */
+type Admin = ReturnType<typeof createAdminClient>;
+
+function matchesLoginId(
+  row: { email?: string | null; username?: string | null; bio?: string | null },
+  loginId: string
+): boolean {
+  if (row.email === loginId) return true;
+  if (row.username === loginId) return true;
+  const packed = readPackedProfile(row.bio)?.username;
+  return Boolean(packed && packed === loginId);
+}
+
+/** Lookup by username column, then email, then packed bio username (legacy null username). */
+export async function findAccountForLogin(
+  admin: Admin,
+  loginId: string
+): Promise<LoginAccountRow | null> {
+  const byUsername = await admin
+    .from('alumni_accounts')
+    .select(LOGIN_SELECT)
+    .eq('username', loginId)
+    .maybeSingle();
+  if (!byUsername.error && byUsername.data) return byUsername.data as LoginAccountRow;
+
+  if (byUsername.error && missingColumn(byUsername.error)) {
+    return findLoginLegacy(admin, loginId);
+  }
+
+  if (loginId.includes('@')) {
+    const byEmail = await admin
+      .from('alumni_accounts')
+      .select(LOGIN_SELECT)
+      .eq('email', loginId)
+      .maybeSingle();
+    if (!byEmail.error && byEmail.data) return byEmail.data as LoginAccountRow;
+  }
+
+  // username column exists but is null on older rows; packed bio still has the handle
+  return findLoginLegacy(admin, loginId);
+}
+
+async function findLoginLegacy(admin: Admin, loginId: string): Promise<LoginAccountRow | null> {
+  // ponytail: O(n) scan when username miss / column missing. Ceiling: alumni roster size; upgrade: backfill username.
+  const { data } = await admin.from('alumni_accounts').select('id,email,password_hash,bio,username');
+  const match = (data || []).find((row) => matchesLoginId(row, loginId));
+  return match
+    ? {
+        id: String(match.id),
+        email: String(match.email),
+        password_hash: String(match.password_hash),
+      }
+    : null;
+}
+
+/** Lookup by username, then email, then packed bio. Used by recover flows. */
 export async function findAccountForRecover(
-  admin: ReturnType<typeof createAdminClient>,
+  admin: Admin,
   loginId: string
 ): Promise<RecoverAccountRow | null> {
   const byUsername = await admin
@@ -48,7 +109,8 @@ export async function findAccountForRecover(
       return findAccountLegacy(admin, loginId);
     }
   }
-  return null;
+
+  return findAccountLegacy(admin, loginId);
 }
 
 function normalizeRecoverRow(row: Record<string, unknown>): RecoverAccountRow {
@@ -64,18 +126,11 @@ function normalizeRecoverRow(row: Record<string, unknown>): RecoverAccountRow {
   };
 }
 
-async function findAccountLegacy(
-  admin: ReturnType<typeof createAdminClient>,
-  loginId: string
-): Promise<RecoverAccountRow | null> {
-  // ponytail: scans when username/recovery columns missing. Upgrade path: apply migrations.
+async function findAccountLegacy(admin: Admin, loginId: string): Promise<RecoverAccountRow | null> {
+  // ponytail: scans when username/recovery columns missing or username null. Upgrade: backfill username.
   const { data } = await admin
     .from('alumni_accounts')
-    .select('id,email,phone_number,batch,bio,username');
-  const match = (data || []).find((row) => {
-    if (row.email === loginId) return true;
-    if ((row as { username?: string }).username === loginId) return true;
-    return readPackedProfile(row.bio)?.username === loginId;
-  });
+    .select('id,email,phone_number,batch,bio,username,recovery_q1,recovery_a1_hash,recovery_q2,recovery_a2_hash');
+  const match = (data || []).find((row) => matchesLoginId(row, loginId));
   return match ? normalizeRecoverRow(match) : null;
 }
