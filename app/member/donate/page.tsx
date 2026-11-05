@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
+import DonationThanksModal from '@/components/donation-thanks-modal';
 import MemberGate from '@/components/member-gate';
 import PortalShell from '@/components/portal-shell';
 import {
@@ -163,40 +163,15 @@ export default function MemberDonatePage() {
   return (
     <PortalShell title="Donate" intro="Support a cause that matters to SFS.">
       <MemberGate>
-        {success ? (
-          <section className="rounded-2xl border border-outline-variant bg-white p-6 sm:p-8 max-w-xl">
-            <p className="text-label-sm uppercase tracking-widest text-jubilee-gold-deep font-bold">
-              Thank you
-            </p>
-            <h2 className="text-headline-md text-primary mt-2">Donation received</h2>
-            <p className="text-body-md text-on-surface-variant mt-3">
-              {formatInrFromPaise(success.amount_paise)} toward{' '}
-              <span className="text-primary font-semibold">{success.causeTitle}</span>.
-            </p>
-            <p className="text-body-sm text-on-surface-variant mt-2 break-all">
-              Reference: {success.paymentId}
-            </p>
-            <div className="flex flex-wrap gap-3 mt-6">
-              <button
-                type="button"
-                onClick={() => setSuccess(null)}
-                className="rounded-lg bg-primary text-on-primary px-4 py-2.5 text-label-sm font-bold uppercase tracking-wider"
-              >
-                Donate again
-              </button>
-              <Link
-                href="/member"
-                className="rounded-lg border border-outline-variant px-4 py-2.5 text-label-sm uppercase tracking-wider text-primary"
-              >
-                Back home
-              </Link>
-            </div>
-          </section>
-        ) : (
-          <form
-            onSubmit={onPay}
-            className="rounded-2xl border border-outline-variant bg-white p-5 sm:p-7 max-w-xl space-y-5"
-          >
+        <DonationThanksModal
+          open={Boolean(success)}
+          details={success}
+          onClose={() => setSuccess(null)}
+        />
+        <form
+          onSubmit={onPay}
+          className="rounded-2xl border border-outline-variant bg-white p-5 sm:p-7 max-w-xl space-y-5"
+        >
             <div>
               <p className="text-label-sm uppercase tracking-wider text-primary mb-2">Cause</p>
               {causes === null ? (
@@ -357,7 +332,6 @@ export default function MemberDonatePage() {
               Secure checkout via Razorpay · UPI and cards
             </p>
           </form>
-        )}
       </MemberGate>
     </PortalShell>
   );

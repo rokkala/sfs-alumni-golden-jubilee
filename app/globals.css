@@ -248,6 +248,36 @@ body {
   font-weight: 700;
 }
 
+@keyframes donation-thanks-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes donation-thanks-mark {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.donation-thanks-card {
+  animation: donation-thanks-in 0.45s ease-out both;
+}
+
+.donation-thanks-mark {
+  animation: donation-thanks-mark 0.55s 0.12s ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .donate-flash,
   .donate-flash-nav {
@@ -255,6 +285,11 @@ body {
     background-color: #8a6a3a;
     border-color: #8a6a3a;
     color: #ffffff;
+  }
+
+  .donation-thanks-card,
+  .donation-thanks-mark {
+    animation: none;
   }
 }
 
