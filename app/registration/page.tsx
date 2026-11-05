@@ -532,6 +532,7 @@ function RegistrationPageInner() {
         eventPricing.dinner_nonveg_paise
     );
     const mealsOffered = lunchOffered || dinnerOffered;
+    const showMealCheckboxes = lunchOffered && dinnerOffered;
 
     useEffect(() => {
         setFormData((prev) => {
@@ -1340,7 +1341,7 @@ function RegistrationPageInner() {
                                         Total attending: {formData.guests.length}{' '}
                                         <span className="text-on-surface-variant font-normal">
                                             ({formData.people_count} people + {formData.guest_count}{' '}
-                                            guests · limit {partyBounds.min}–{partyBounds.max})
+                                            guests)
                                         </span>
                                     </p>
 
@@ -1380,22 +1381,31 @@ function RegistrationPageInner() {
                                                                     checked={guest.preference === pref.value}
                                                                     onChange={() => {
                                                                         const guests = formData.guests.map(
-                                                                            (g, i) =>
-                                                                                i === index
-                                                                                    ? {
-                                                                                          preference: pref.value,
-                                                                                          lunch:
-                                                                                              pref.value === 'none'
-                                                                                                  ? false
-                                                                                                  : lunchOffered &&
-                                                                                                    g.lunch,
-                                                                                          dinner:
-                                                                                              pref.value === 'none'
-                                                                                                  ? false
-                                                                                                  : dinnerOffered &&
-                                                                                                    g.dinner,
-                                                                                      }
-                                                                                    : g
+                                                                            (g, i) => {
+                                                                                if (i !== index) return g;
+                                                                                if (pref.value === 'none') {
+                                                                                    return {
+                                                                                        preference: pref.value,
+                                                                                        lunch: false,
+                                                                                        dinner: false,
+                                                                                    };
+                                                                                }
+                                                                                if (showMealCheckboxes) {
+                                                                                    return {
+                                                                                        preference: pref.value,
+                                                                                        lunch:
+                                                                                            lunchOffered && g.lunch,
+                                                                                        dinner:
+                                                                                            dinnerOffered &&
+                                                                                            g.dinner,
+                                                                                    };
+                                                                                }
+                                                                                return {
+                                                                                    preference: pref.value,
+                                                                                    lunch: lunchOffered,
+                                                                                    dinner: dinnerOffered,
+                                                                                };
+                                                                            }
                                                                         );
                                                                         setFormData({ ...formData, guests });
                                                                     }}
@@ -1408,76 +1418,72 @@ function RegistrationPageInner() {
                                                             </label>
                                                         ))}
                                                     </div>
-                                                    {guest.preference !== 'none' ? (
+                                                    {guest.preference !== 'none' && showMealCheckboxes ? (
                                                         <div className="flex flex-wrap gap-4">
-                                                            {lunchOffered ? (
-                                                                <label className="flex items-center gap-2">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={guest.lunch}
-                                                                        onChange={(e) => {
-                                                                            const guests =
-                                                                                formData.guests.map((g, i) =>
-                                                                                    i === index
-                                                                                        ? {
-                                                                                              ...g,
-                                                                                              lunch: e.target
-                                                                                                  .checked,
-                                                                                          }
-                                                                                        : g
-                                                                                );
-                                                                            setFormData({
-                                                                                ...formData,
-                                                                                guests,
-                                                                            });
-                                                                        }}
-                                                                        disabled={busy}
-                                                                        className="w-4 h-4 accent-primary cursor-pointer disabled:opacity-50"
-                                                                    />
-                                                                    <span className="text-body-sm text-on-surface">
-                                                                        {mealChoiceLabel(
-                                                                            'Lunch',
-                                                                            eventPricing.lunch_paise,
-                                                                            eventPricing.lunch_nonveg_paise,
-                                                                            guest.preference
-                                                                        )}
-                                                                    </span>
-                                                                </label>
-                                                            ) : null}
-                                                            {dinnerOffered ? (
-                                                                <label className="flex items-center gap-2">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={guest.dinner}
-                                                                        onChange={(e) => {
-                                                                            const guests =
-                                                                                formData.guests.map((g, i) =>
-                                                                                    i === index
-                                                                                        ? {
-                                                                                              ...g,
-                                                                                              dinner: e.target
-                                                                                                  .checked,
-                                                                                          }
-                                                                                        : g
-                                                                                );
-                                                                            setFormData({
-                                                                                ...formData,
-                                                                                guests,
-                                                                            });
-                                                                        }}
-                                                                        disabled={busy}
-                                                                        className="w-4 h-4 accent-primary cursor-pointer disabled:opacity-50"
-                                                                    />
-                                                                    <span className="text-body-sm text-on-surface">
-                                                                        {mealChoiceLabel(
-                                                                            'Dinner',
-                                                                            eventPricing.dinner_paise,
-                                                                            eventPricing.dinner_nonveg_paise,
-                                                                            guest.preference
-                                                                        )}
-                                                                    </span>
-                                                                </label>
-                                                            ) : null}
+                                                            <label className="flex items-center gap-2">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={guest.lunch}
+                                                                    onChange={(e) => {
+                                                                        const guests =
+                                                                            formData.guests.map((g, i) =>
+                                                                                i === index
+                                                                                    ? {
+                                                                                          ...g,
+                                                                                          lunch: e.target
+                                                                                              .checked,
+                                                                                      }
+                                                                                    : g
+                                                                            );
+                                                                        setFormData({
+                                                                            ...formData,
+                                                                            guests,
+                                                                        });
+                                                                    }}
+                                                                    disabled={busy}
+                                                                    className="w-4 h-4 accent-primary cursor-pointer disabled:opacity-50"
+                                                                />
+                                                                <span className="text-body-sm text-on-surface">
+                                                                    {mealChoiceLabel(
+                                                                        'Lunch',
+                                                                        eventPricing.lunch_paise,
+                                                                        eventPricing.lunch_nonveg_paise,
+                                                                        guest.preference
+                                                                    )}
+                                                                </span>
+                                                            </label>
+                                                            <label className="flex items-center gap-2">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={guest.dinner}
+                                                                    onChange={(e) => {
+                                                                        const guests =
+                                                                            formData.guests.map((g, i) =>
+                                                                                i === index
+                                                                                    ? {
+                                                                                          ...g,
+                                                                                          dinner: e.target
+                                                                                              .checked,
+                                                                                      }
+                                                                                    : g
+                                                                            );
+                                                                        setFormData({
+                                                                            ...formData,
+                                                                            guests,
+                                                                        });
+                                                                    }}
+                                                                    disabled={busy}
+                                                                    className="w-4 h-4 accent-primary cursor-pointer disabled:opacity-50"
+                                                                />
+                                                                <span className="text-body-sm text-on-surface">
+                                                                    {mealChoiceLabel(
+                                                                        'Dinner',
+                                                                        eventPricing.dinner_paise,
+                                                                        eventPricing.dinner_nonveg_paise,
+                                                                        guest.preference
+                                                                    )}
+                                                                </span>
+                                                            </label>
                                                         </div>
                                                     ) : null}
                                                 </div>
@@ -1822,10 +1828,7 @@ function RegistrationPageInner() {
                                 </div>
                             </div>
                             <p className="text-body-sm text-primary font-semibold">
-                                Total attending: {formData.guests.length}{' '}
-                                <span className="text-on-surface-variant font-normal">
-                                    (limit {partyBounds.min}–{partyBounds.max})
-                                </span>
+                                Total attending: {formData.guests.length}
                             </p>
                             {formDirty && (
                                 <p className="text-body-sm text-on-surface-variant mt-3">

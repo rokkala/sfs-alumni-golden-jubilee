@@ -74,7 +74,10 @@ export function mealIsOffered(
   return mealHasRate(vegPaise, nonvegPaise);
 }
 
-/** Clear lunch/dinner flags for meals that are not provided. */
+/**
+ * Clear meals that are not provided.
+ * When only one meal is provided, auto-select it for eating guests (UI hides the checkboxes).
+ */
 export function clampGuestMealsToPricing(
   pricing: EventPricing,
   guests: GuestChoice[]
@@ -89,12 +92,23 @@ export function clampGuestMealsToPricing(
     pricing.dinner_paise,
     pricing.dinner_nonveg_paise
   );
+  const both = lunch && dinner;
   return guests.map((g) => {
     const n = normalizeGuest(g);
+    if (n.preference === 'none') {
+      return { ...n, lunch: false, dinner: false };
+    }
+    if (both) {
+      return {
+        ...n,
+        lunch: n.lunch,
+        dinner: n.dinner,
+      };
+    }
     return {
       ...n,
-      lunch: lunch && n.lunch,
-      dinner: dinner && n.dinner,
+      lunch: lunch,
+      dinner: dinner,
     };
   });
 }

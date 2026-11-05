@@ -151,10 +151,36 @@ assert(
         lunch_provided: true,
         dinner_provided: false,
       },
-      [{ preference: 'veg', lunch: true, dinner: true }]
+      [{ preference: 'veg', lunch: false, dinner: true }]
     )
   ) === JSON.stringify([{ preference: 'veg', lunch: true, dinner: false }]),
-  'clamp keeps free provided lunch and clears not-provided dinner'
+  'single provided meal auto-selects lunch for eating guests'
+);
+assert(
+  JSON.stringify(
+    clampGuestMealsToPricing(
+      {
+        ...newRates,
+        lunch_provided: false,
+        dinner_provided: true,
+      },
+      [{ preference: 'none', lunch: true, dinner: true }]
+    )
+  ) === JSON.stringify([{ preference: 'none', lunch: false, dinner: false }]),
+  'no-food clears the single provided meal'
+);
+assert(
+  JSON.stringify(
+    clampGuestMealsToPricing(
+      {
+        ...newRates,
+        lunch_provided: true,
+        dinner_provided: true,
+      },
+      [{ preference: 'veg', lunch: true, dinner: false }]
+    )
+  ) === JSON.stringify([{ preference: 'veg', lunch: true, dinner: false }]),
+  'both meals provided keeps explicit lunch/dinner choices'
 );
 
 console.log('check-reprice: PASS');
