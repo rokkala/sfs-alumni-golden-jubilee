@@ -26,6 +26,7 @@ type FormState = {
   parking_2w_rupees: string;
   parking_4w_rupees: string;
   base_ticket_rupees: string;
+  guest_fee_rupees: string;
   fee_batch_from: string;
   fee_batch_to: string;
   fee_batch_rupees: string;
@@ -68,6 +69,7 @@ function initialFrom(event?: EventCatalog | null): FormState {
     parking_2w_rupees: paiseToRupeesField(event?.parking_2w_paise ?? 5000),
     parking_4w_rupees: paiseToRupeesField(event?.parking_4w_paise ?? 20000),
     base_ticket_rupees: paiseToRupeesField(event?.base_ticket_paise ?? 0),
+    guest_fee_rupees: paiseToRupeesField(event?.guest_fee_paise ?? 0),
     fee_batch_from: event?.fee_batch_from != null ? String(event.fee_batch_from) : '',
     fee_batch_to: event?.fee_batch_to != null ? String(event.fee_batch_to) : '',
     fee_batch_rupees: paiseToRupeesField(event?.fee_batch_paise ?? 0),
@@ -95,6 +97,7 @@ function pricingFromForm(f: FormState): EventPricing {
     parking_2w_paise: r(f.parking_2w_rupees),
     parking_4w_paise: r(f.parking_4w_rupees),
     base_ticket_paise: r(f.base_ticket_rupees),
+    guest_fee_paise: r(f.guest_fee_rupees),
     fee_batch_from: optionalYear(f.fee_batch_from),
     fee_batch_to: optionalYear(f.fee_batch_to),
     fee_batch_paise: r(f.fee_batch_rupees),
@@ -109,7 +112,7 @@ export default function AdminEventForm({ event }: { event?: EventCatalog | null 
 
   const preview = useMemo(() => {
     const pricing = pricingFromForm(form);
-    const sample = { numberOfGuests: 1, lunch: true, dinner: true, parkingNeeded: '4-wheeler' as const };
+    const sample = { numberOfGuests: 2, lunch: true, dinner: true, parkingNeeded: '4-wheeler' as const };
     const inRangeBatch =
       optionalYear(form.fee_batch_from) ?? optionalYear(form.fee_batch_to) ?? BATCH_START_YEAR;
     const outRangeBatch = (optionalYear(form.fee_batch_to) ?? 2099) + 1;
@@ -298,7 +301,8 @@ export default function AdminEventForm({ event }: { event?: EventCatalog | null 
                 ['dinner_nonveg_rupees', 'Dinner · non-veg / person'],
                 ['parking_2w_rupees', '2-wheeler parking'],
                 ['parking_4w_rupees', '4-wheeler parking'],
-                ['base_ticket_rupees', 'Registration fee / person (default)'],
+                ['base_ticket_rupees', 'Registration fee (alumnus)'],
+                ['guest_fee_rupees', 'Guest registration fee / guest'],
               ] as const
             ).map(([key, lab]) => (
               <div key={key}>
@@ -403,7 +407,7 @@ export default function AdminEventForm({ event }: { event?: EventCatalog | null 
               </div>
               <div>
                 <label className={label} htmlFor="fee_batch_rupees">
-                  Fee for these batches / person
+                  Fee for these batches (alumnus)
                 </label>
                 <input
                   id="fee_batch_rupees"
@@ -436,7 +440,7 @@ export default function AdminEventForm({ event }: { event?: EventCatalog | null 
           Sample total
         </div>
         <p className="text-body-sm text-primary-fixed mt-2">
-          1 person, lunch + dinner, 4-wheeler
+          2 people (1 guest), lunch + dinner, 4-wheeler
         </p>
         <div className="mt-4 space-y-3">
           <div>

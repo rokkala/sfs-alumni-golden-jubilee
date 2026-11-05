@@ -31,8 +31,8 @@ assert(
   'one person is 100000, not an extra default person'
 );
 assert(
-  calculateEventRegistrationCost({ ...jubilee, base_ticket_paise: 10000 }, input) === 200000,
-  'registration fee is per person (2 × ₹100 + meals/parking = 200000)'
+  calculateEventRegistrationCost({ ...jubilee, base_ticket_paise: 10000 }, input) === 190000,
+  'alumnus fee once when guest fee unset (₹100 + meals/parking = 190000)'
 );
 assert(
   calculateEventRegistrationCost(
@@ -42,14 +42,42 @@ assert(
   'one person registration fee is once'
 );
 assert(
-  getEventCostBreakdown({ ...jubilee, base_ticket_paise: 10000 }, input).details.includes(
-    'registration fee ₹100 / person'
-  ),
-  'breakdown names the per-person registration fee'
+  calculateEventRegistrationCost(
+    { ...jubilee, base_ticket_paise: 10000, guest_fee_paise: 5000 },
+    input
+  ) === 195000,
+  'guest fee × accompanying guests (₹100 + ₹50 + meals/parking = 195000)'
 );
 assert(
-  getEventCostBreakdown({ ...jubilee, base_ticket_paise: 10000 }, input).baseCost === 20000,
-  'baseCost is rate × people'
+  calculateEventRegistrationCost(
+    { ...jubilee, base_ticket_paise: 10000, guest_fee_paise: 5000 },
+    { ...input, numberOfGuests: 1 }
+  ) === 110000,
+  'solo alumnus pays no guest fee'
+);
+assert(
+  getEventCostBreakdown({ ...jubilee, base_ticket_paise: 10000 }, input).details.includes(
+    'registration fee ₹100'
+  ),
+  'breakdown names the alumnus registration fee'
+);
+assert(
+  getEventCostBreakdown(
+    { ...jubilee, base_ticket_paise: 10000, guest_fee_paise: 5000 },
+    input
+  ).details.includes('guest fee ₹50 ×1'),
+  'breakdown names guest fee'
+);
+assert(
+  getEventCostBreakdown({ ...jubilee, base_ticket_paise: 10000 }, input).baseCost === 10000,
+  'baseCost is alumnus fee only'
+);
+assert(
+  getEventCostBreakdown(
+    { ...jubilee, base_ticket_paise: 10000, guest_fee_paise: 5000 },
+    input
+  ).guestCost === 5000,
+  'guestCost is guest fee × (people − 1)'
 );
 const bd = getEventCostBreakdown(jubilee, input);
 assert(bd.totalCost === 180000, 'breakdown total');
@@ -119,6 +147,7 @@ const mixedPricing = {
   parking_2w_paise: 5000,
   parking_4w_paise: 20000,
   base_ticket_paise: 10000,
+  guest_fee_paise: 10000,
 };
 const mixedGuests = [
   { preference: 'non-veg', lunch: true, dinner: true },
@@ -130,7 +159,7 @@ assert(
     guests: mixedGuests,
     parkingNeeded: '4-wheeler',
   }) === 195000,
-  'mixed party totals per guest'
+  'mixed party: alumnus fee + 2× guest fee + meals/parking'
 );
 const counts = guestMealCounts(mixedGuests);
 assert(counts.lunchVeg === 1, 'lunch veg count');

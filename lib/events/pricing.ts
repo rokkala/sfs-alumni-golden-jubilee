@@ -11,7 +11,12 @@ export function eventToPricing(event: Pick<
 > & Partial<
   Pick<
     EventCatalog,
-    'lunch_nonveg_paise' | 'dinner_nonveg_paise' | 'fee_batch_from' | 'fee_batch_to' | 'fee_batch_paise'
+    | 'lunch_nonveg_paise'
+    | 'dinner_nonveg_paise'
+    | 'guest_fee_paise'
+    | 'fee_batch_from'
+    | 'fee_batch_to'
+    | 'fee_batch_paise'
   >
 >): EventPricing {
   return {
@@ -22,6 +27,7 @@ export function eventToPricing(event: Pick<
     parking_2w_paise: event.parking_2w_paise,
     parking_4w_paise: event.parking_4w_paise,
     base_ticket_paise: event.base_ticket_paise,
+    guest_fee_paise: event.guest_fee_paise ?? 0,
     fee_batch_from: event.fee_batch_from ?? null,
     fee_batch_to: event.fee_batch_to ?? null,
     fee_batch_paise: event.fee_batch_paise ?? 0,

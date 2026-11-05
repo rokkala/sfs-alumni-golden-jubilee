@@ -129,6 +129,8 @@ export type EventPricing = {
   parking_2w_paise: number;
   parking_4w_paise: number;
   base_ticket_paise: number;
+  /** Fee per accompanying guest (people − 1). Absent/null = 0. */
+  guest_fee_paise?: number | null;
   /** Inclusive batch bounds for alternate fee; both null = everyone pays base_ticket. */
   fee_batch_from?: number | null;
   fee_batch_to?: number | null;
@@ -164,7 +166,7 @@ function batchInFeeRange(
 }
 
 /**
- * Registration fee per person.
+ * Alumnus registration fee (once per registration).
  * No range → base_ticket_paise (may be 0).
  * With range → fee_batch_paise in range (may be 0), else base_ticket_paise.
  */
@@ -250,6 +252,7 @@ export function getEventCostBreakdown(
   mealCost: number;
   parkingCost: number;
   baseCost: number;
+  guestCost: number;
   totalCost: number;
   details: string;
 } {
@@ -271,7 +274,10 @@ export function getEventCostBreakdown(
         : 0;
 
   const baseRate = effectiveBaseTicketPaise(pricing, input.batch);
-  const baseCost = totalPeople * baseRate;
+  const baseCost = baseRate;
+  const guestRate = Math.max(0, Number(pricing.guest_fee_paise) || 0);
+  const extraGuests = Math.max(0, totalPeople - 1);
+  const guestCost = extraGuests * guestRate;
   const counts = guestMealCounts(guests);
 
   const mealBits: string[] = [];
@@ -302,14 +308,18 @@ export function getEventCostBreakdown(
     details += ` · parking ₹${(parkingCost / 100).toFixed(0)}`;
   }
   if (baseRate > 0) {
-    details += ` · registration fee ₹${(baseRate / 100).toFixed(0)} / person`;
+    details += ` · registration fee ₹${(baseRate / 100).toFixed(0)}`;
+  }
+  if (guestCost > 0) {
+    details += ` · guest fee ₹${(guestRate / 100).toFixed(0)} ×${extraGuests}`;
   }
 
   return {
     mealCost,
     parkingCost,
     baseCost,
-    totalCost: mealCost + parkingCost + baseCost,
+    guestCost,
+    totalCost: mealCost + parkingCost + baseCost + guestCost,
     details,
   };
 }
@@ -324,6 +334,7 @@ export function getCostBreakdown(input: CostCalculationInput) {
   return {
     mealCost: b.mealCost,
     parkingCost: b.parkingCost,
+    guestCost: b.guestCost,
     totalCost: b.totalCost,
     details: b.details,
   };

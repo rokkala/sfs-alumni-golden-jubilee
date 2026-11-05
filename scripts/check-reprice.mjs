@@ -80,6 +80,7 @@ const mixed = repriceRegistration(
     lunch_nonveg_paise: 45000,
     dinner_nonveg_paise: 70000,
     base_ticket_paise: 10000,
+    guest_fee_paise: 10000,
   },
   {
     number_of_guests: 3,
@@ -94,7 +95,7 @@ const mixed = repriceRegistration(
     amount_paid_paise: 0,
   }
 );
-assert(mixed.total_cost_paise === 195000, 'mixed guest reprice matches per-guest total');
+assert(mixed.total_cost_paise === 195000, 'mixed guest reprice: alumnus + guest fees + meals');
 
 assert(mealChoiceLabel('Lunch', 40000, 55000, 'veg') === 'Lunch · ₹400 / person', 'veg meal label');
 assert(

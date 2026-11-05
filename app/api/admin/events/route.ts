@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { requireVerifiedAdmin } from '@/lib/auth/admin-guard';
 import {
   DIET_PRICE_WARNING,
+  GUEST_FEE_WARNING,
   PARTY_LIMITS_WARNING,
   selectCatalog,
   withoutDietPrices,
   withoutFeeBatch,
+  withoutGuestFee,
   withoutPartyLimits,
   withoutRefundEmail,
 } from '@/lib/events/catalog-select';
@@ -62,6 +64,7 @@ export async function POST(request: Request) {
     parking_2w_paise: parseNonNegInt(body.parking_2w_paise),
     parking_4w_paise: parseNonNegInt(body.parking_4w_paise),
     base_ticket_paise: parseNonNegInt(body.base_ticket_paise),
+    guest_fee_paise: parseNonNegInt(body.guest_fee_paise),
     fee_batch_from: parseOptionalBatchYear(body.fee_batch_from),
     fee_batch_to: parseOptionalBatchYear(body.fee_batch_to),
     fee_batch_paise: parseNonNegInt(body.fee_batch_paise),
@@ -88,9 +91,11 @@ export async function POST(request: Request) {
   let { data, error } = await admin.from('event_catalog').insert(row).select(EVENT_SELECT).single();
   let warning: string | null = null;
   if (error && missingColumn(error)) {
-    const partyMissing = /party_min|party_max/i.test(error.message || '');
-    const stripped = withoutPartyLimits(
-      withoutRefundEmail(withoutFeeBatch(withoutDietPrices(row)))
+    const msg = error.message || '';
+    const partyMissing = /party_min|party_max/i.test(msg);
+    const guestMissing = /guest_fee_paise/i.test(msg);
+    const stripped = withoutGuestFee(
+      withoutPartyLimits(withoutRefundEmail(withoutFeeBatch(withoutDietPrices(row))))
     );
     const retry = await admin
       .from('event_catalog')
@@ -99,7 +104,11 @@ export async function POST(request: Request) {
       .single();
     data = retry.data as unknown as typeof data;
     error = retry.error;
-    warning = partyMissing ? PARTY_LIMITS_WARNING : DIET_PRICE_WARNING;
+    warning = partyMissing
+      ? PARTY_LIMITS_WARNING
+      : guestMissing
+        ? GUEST_FEE_WARNING
+        : DIET_PRICE_WARNING;
   }
   if (error) {
     console.error('admin events create', error);

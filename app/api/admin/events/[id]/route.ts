@@ -3,10 +3,12 @@ import { requireVerifiedAdmin } from '@/lib/auth/admin-guard';
 import {
   DIET_PRICE_WARNING,
   EVENT_SELECT_DIET,
+  GUEST_FEE_WARNING,
   PARTY_LIMITS_WARNING,
   selectCatalog,
   withoutDietPrices,
   withoutFeeBatch,
+  withoutGuestFee,
   withoutPartyLimits,
   withoutRefundEmail,
 } from '@/lib/events/catalog-select';
@@ -54,6 +56,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
   if (body.parking_2w_paise !== undefined) patch.parking_2w_paise = parseNonNegInt(body.parking_2w_paise);
   if (body.parking_4w_paise !== undefined) patch.parking_4w_paise = parseNonNegInt(body.parking_4w_paise);
   if (body.base_ticket_paise !== undefined) patch.base_ticket_paise = parseNonNegInt(body.base_ticket_paise);
+  if (body.guest_fee_paise !== undefined) patch.guest_fee_paise = parseNonNegInt(body.guest_fee_paise);
   if (body.fee_batch_from !== undefined) patch.fee_batch_from = parseOptionalBatchYear(body.fee_batch_from);
   if (body.fee_batch_to !== undefined) patch.fee_batch_to = parseOptionalBatchYear(body.fee_batch_to);
   if (body.fee_batch_paise !== undefined) patch.fee_batch_paise = parseNonNegInt(body.fee_batch_paise);
@@ -89,16 +92,26 @@ export async function PATCH(request: Request, ctx: Ctx) {
     .maybeSingle();
   let warning: string | null = null;
   if (error && missingColumn(error)) {
-    const partyMissing = /party_min|party_max/i.test(error.message || '');
+    const msg = error.message || '';
+    const partyMissing = /party_min|party_max/i.test(msg);
+    const guestMissing = /guest_fee_paise/i.test(msg);
     const retry = await admin
       .from('event_catalog')
-      .update(withoutPartyLimits(withoutRefundEmail(withoutFeeBatch(withoutDietPrices(patch)))))
+      .update(
+        withoutGuestFee(
+          withoutPartyLimits(withoutRefundEmail(withoutFeeBatch(withoutDietPrices(patch))))
+        )
+      )
       .eq('id', id)
       .select(EVENT_SELECT_CORE)
       .maybeSingle();
     data = retry.data as unknown as typeof data;
     error = retry.error;
-    warning = partyMissing ? PARTY_LIMITS_WARNING : DIET_PRICE_WARNING;
+    warning = partyMissing
+      ? PARTY_LIMITS_WARNING
+      : guestMissing
+        ? GUEST_FEE_WARNING
+        : DIET_PRICE_WARNING;
   }
 
   if (error || !data) {
@@ -114,6 +127,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     'parking_2w_paise',
     'parking_4w_paise',
     'base_ticket_paise',
+    'guest_fee_paise',
     'fee_batch_from',
     'fee_batch_to',
     'fee_batch_paise',

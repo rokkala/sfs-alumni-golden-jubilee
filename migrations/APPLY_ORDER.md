@@ -28,6 +28,7 @@ Run in SQL Editor, **filename order**:
 22. `20261101_event_refund_email.sql`
 23. `20261101_push_and_broadcasts.sql`
 24. `20261105_event_party_limits.sql`
+25. `20261105_event_guest_fee.sql`
 
 ## 2. Data — `02_data/`
 

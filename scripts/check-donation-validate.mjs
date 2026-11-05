@@ -11,7 +11,7 @@ import {
 } from '../lib/donations/validate.ts';
 
 if (DONATION_MIN_PAISE !== 100) throw new Error('min paise');
-if (DONATION_AMOUNT_CHIPS_PAISE.join(',') !== '50000,100000,250000,500000') {
+if (DONATION_AMOUNT_CHIPS_PAISE.join(',') !== '0,100000,500000,1000000') {
   throw new Error('chips');
 }
 

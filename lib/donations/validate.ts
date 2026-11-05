@@ -1,9 +1,10 @@
-export const DONATION_AMOUNT_CHIPS_PAISE = [50000, 100000, 250000, 500000] as const;
+/** Preset donation amounts in paise: ₹0, ₹1,000, ₹5,000, ₹10,000. */
+export const DONATION_AMOUNT_CHIPS_PAISE = [0, 100_000, 500_000, 1_000_000] as const;
 
 export const DONATION_MIN_PAISE = 100;
 export const DONATION_MAX_MESSAGE = 280;
 
-/** Throws Error with member-facing message when invalid. */
+/** Throws Error with member-facing message when invalid. Zero is not payable. */
 export function assertDonationAmountPaise(value: unknown): number {
   const n = Math.round(Number(value));
   if (!Number.isFinite(n) || n < DONATION_MIN_PAISE) {

@@ -14,6 +14,8 @@ export type EventCatalog = {
   parking_2w_paise: number;
   parking_4w_paise: number;
   base_ticket_paise: number;
+  /** Fee (paise) per accompanying guest (people attending − 1). */
+  guest_fee_paise?: number | null;
   /** Inclusive batch lower bound for alternate fee; both null = everyone pays base. */
   fee_batch_from?: number | null;
   /** Inclusive batch upper bound for alternate fee. */
@@ -31,11 +33,15 @@ export type EventCatalog = {
   updated_at?: string;
 };
 
-/** Fee-batch + refund columns; no party_min/max (pre–party-limits migration). */
+/** Fee-batch + refund + guest fee; no party_min/max (pre–party-limits migration). */
 export const EVENT_SELECT_CORE =
-  'id,title,summary,description,starts_at,ends_at,venue,published,lunch_paise,dinner_paise,parking_2w_paise,parking_4w_paise,base_ticket_paise,fee_batch_from,fee_batch_to,fee_batch_paise,refund_email,is_primary,created_at,updated_at';
+  'id,title,summary,description,starts_at,ends_at,venue,published,lunch_paise,dinner_paise,parking_2w_paise,parking_4w_paise,base_ticket_paise,guest_fee_paise,fee_batch_from,fee_batch_to,fee_batch_paise,refund_email,is_primary,created_at,updated_at';
 
 export const EVENT_SELECT = `${EVENT_SELECT_CORE},party_min,party_max`;
+
+/** Pre–guest-fee columns (migration not applied yet). */
+export const EVENT_SELECT_CORE_NO_GUEST =
+  'id,title,summary,description,starts_at,ends_at,venue,published,lunch_paise,dinner_paise,parking_2w_paise,parking_4w_paise,base_ticket_paise,fee_batch_from,fee_batch_to,fee_batch_paise,refund_email,is_primary,created_at,updated_at';
 
 /** Pre–fee-batch-range columns (migration not applied yet). */
 export const EVENT_SELECT_LEGACY =

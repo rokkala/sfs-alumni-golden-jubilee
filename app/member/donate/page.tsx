@@ -23,7 +23,7 @@ function formatInrFromPaise(paise: number): string {
 export default function MemberDonatePage() {
   const [causes, setCauses] = useState<Cause[] | null>(null);
   const [causeId, setCauseId] = useState('');
-  const [chipPaise, setChipPaise] = useState<number | null>(DONATION_AMOUNT_CHIPS_PAISE[1]);
+  const [chipPaise, setChipPaise] = useState<number>(DONATION_AMOUNT_CHIPS_PAISE[1]);
   const [customRupees, setCustomRupees] = useState('');
   const [useCustom, setUseCustom] = useState(false);
   const [message, setMessage] = useState('');
@@ -73,6 +73,9 @@ export default function MemberDonatePage() {
     return chipPaise;
   }
 
+  const payableAmount = amountPaise();
+  const canPay = payableAmount != null && payableAmount >= 100;
+
   async function onPay(e: FormEvent) {
     e.preventDefault();
     setError('');
@@ -82,8 +85,8 @@ export default function MemberDonatePage() {
       setError('Choose a cause');
       return;
     }
-    if (amount == null) {
-      setError('Enter at least ₹1');
+    if (amount == null || amount < 100) {
+      setError(useCustom ? 'Enter a positive amount of at least ₹1' : 'Choose an amount above ₹0 to pay');
       return;
     }
     setBusy(true);
@@ -234,51 +237,72 @@ export default function MemberDonatePage() {
 
             <div>
               <p className="text-label-sm uppercase tracking-wider text-primary mb-2">Amount</p>
-              <div className="flex flex-wrap gap-2">
+              <ul className="space-y-2">
                 {DONATION_AMOUNT_CHIPS_PAISE.map((paise) => (
-                  <button
-                    key={paise}
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      setUseCustom(false);
-                      setChipPaise(paise);
-                    }}
-                    className={`rounded-full px-4 py-2 text-label-sm font-bold ${
-                      !useCustom && chipPaise === paise
-                        ? 'bg-primary text-on-primary'
-                        : 'bg-surface-container text-primary'
+                  <li key={paise}>
+                    <label
+                      className={`flex items-center gap-3 rounded-xl border px-3 py-3 cursor-pointer ${
+                        !useCustom && chipPaise === paise
+                          ? 'border-jubilee-gold-deep bg-jubilee-gold-light/40'
+                          : 'border-outline-variant'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="donation-amount"
+                        className="accent-primary"
+                        checked={!useCustom && chipPaise === paise}
+                        onChange={() => {
+                          setUseCustom(false);
+                          setChipPaise(paise);
+                        }}
+                        disabled={busy}
+                      />
+                      <span className="text-body-md text-primary font-semibold">
+                        {paise === 0 ? 'Zero (₹0)' : formatInrFromPaise(paise)}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+                <li>
+                  <label
+                    className={`flex flex-col gap-2 rounded-xl border px-3 py-3 cursor-pointer ${
+                      useCustom
+                        ? 'border-jubilee-gold-deep bg-jubilee-gold-light/40'
+                        : 'border-outline-variant'
                     }`}
                   >
-                    {formatInrFromPaise(paise)}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setUseCustom(true)}
-                  className={`rounded-full px-4 py-2 text-label-sm font-bold ${
-                    useCustom ? 'bg-primary text-on-primary' : 'bg-surface-container text-primary'
-                  }`}
-                >
-                  Custom
-                </button>
-              </div>
-              {useCustom ? (
-                <label className="block mt-3">
-                  <span className="sr-only">Custom amount in rupees</span>
-                  <input
-                    type="number"
-                    min={1}
-                    step={1}
-                    inputMode="numeric"
-                    value={customRupees}
-                    onChange={(e) => setCustomRupees(e.target.value)}
-                    disabled={busy}
-                    placeholder="Amount in ₹"
-                    className="w-full px-4 py-3.5 rounded-lg border border-outline-variant text-body-sm bg-surface focus:outline-none focus:border-primary"
-                  />
-                </label>
+                    <span className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="donation-amount"
+                        className="accent-primary"
+                        checked={useCustom}
+                        onChange={() => setUseCustom(true)}
+                        disabled={busy}
+                      />
+                      <span className="text-body-md text-primary font-semibold">Other amount</span>
+                    </span>
+                    {useCustom ? (
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        inputMode="numeric"
+                        value={customRupees}
+                        onChange={(e) => setCustomRupees(e.target.value)}
+                        disabled={busy}
+                        placeholder="Enter amount in ₹"
+                        className="w-full px-4 py-3 rounded-lg border border-outline-variant text-body-sm bg-surface focus:outline-none focus:border-primary"
+                      />
+                    ) : null}
+                  </label>
+                </li>
+              </ul>
+              {!canPay ? (
+                <p className="text-label-sm text-on-surface-variant mt-2">
+                  Select ₹1,000 or more (or enter a custom amount) to continue to payment.
+                </p>
               ) : null}
             </div>
 
@@ -306,7 +330,7 @@ export default function MemberDonatePage() {
 
             <button
               type="submit"
-              disabled={busy || !causes?.length}
+              disabled={busy || !causes?.length || !canPay}
               className="w-full rounded-lg bg-primary text-on-primary px-4 py-3 text-label-sm font-bold uppercase tracking-wider disabled:opacity-50"
             >
               {busy ? 'Opening payment…' : 'Pay with Razorpay'}
