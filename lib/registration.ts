@@ -224,25 +224,9 @@ function resolveGuests(input: CostCalculationInput): GuestChoice[] {
   );
 }
 
-function guestsForPricing(pricing: EventPricing, input: CostCalculationInput): GuestChoice[] {
-  // Inline clamp (avoid circular import with pricing.ts helpers used by the UI).
-  const lunchOn =
-    Math.max(0, pricing.lunch_paise || 0) > 0 ||
-    (pricing.lunch_nonveg_paise != null && Number(pricing.lunch_nonveg_paise) > 0);
-  const dinnerOn =
-    Math.max(0, pricing.dinner_paise || 0) > 0 ||
-    (pricing.dinner_nonveg_paise != null && Number(pricing.dinner_nonveg_paise) > 0);
-  return resolveGuests(input).map((g) => {
-    const guest = normalizeGuest(g);
-    if (!lunchOn && !dinnerOn) {
-      return { preference: 'none' as const, lunch: false, dinner: false };
-    }
-    return {
-      ...guest,
-      lunch: lunchOn && guest.lunch,
-      dinner: dinnerOn && guest.dinner,
-    };
-  });
+function guestsForPricing(_pricing: EventPricing, input: CostCalculationInput): GuestChoice[] {
+  // Keep lunch/dinner selections even when priced at ₹0 (needed for headcount).
+  return resolveGuests(input).map(normalizeGuest);
 }
 
 export function getEventCostBreakdown(
@@ -359,15 +343,6 @@ export function validateRegistrationCost(
   const hasParking = input.parkingNeeded !== 'none';
   if (hasMeal || hasParking) return true;
 
-  const lunchOn =
-    Math.max(0, pricing.lunch_paise || 0) > 0 ||
-    (pricing.lunch_nonveg_paise != null && Number(pricing.lunch_nonveg_paise) > 0);
-  const dinnerOn =
-    Math.max(0, pricing.dinner_paise || 0) > 0 ||
-    (pricing.dinner_nonveg_paise != null && Number(pricing.dinner_nonveg_paise) > 0);
-  // Meals not sold: fee-only / free registration is valid (fee may be ₹0).
-  if (!lunchOn && !dinnerOn) return true;
-
   // Batch in an explicit fee range (amount may be ₹0) — allow that free/reduced ticket.
   const fromRaw = pricing.fee_batch_from;
   const toRaw = pricing.fee_batch_to;
@@ -375,6 +350,15 @@ export function validateRegistrationCost(
     (fromRaw != null && Number.isFinite(Number(fromRaw))) ||
     (toRaw != null && Number.isFinite(Number(toRaw)));
   if (rangeSet && batchInFeeRange(fromRaw, toRaw, input.batch)) return true;
+
+  // Fee-only / free event with no meal or parking choice is still a valid registration.
+  const feeOnly =
+    Math.max(0, Number(pricing.base_ticket_paise) || 0) === 0 &&
+    Math.max(0, Number(pricing.lunch_paise) || 0) === 0 &&
+    Math.max(0, Number(pricing.dinner_paise) || 0) === 0 &&
+    (pricing.lunch_nonveg_paise == null || Number(pricing.lunch_nonveg_paise) === 0) &&
+    (pricing.dinner_nonveg_paise == null || Number(pricing.dinner_nonveg_paise) === 0);
+  if (feeOnly) return true;
 
   return false;
 }

@@ -47,59 +47,46 @@ function rupees(paise: number | null | undefined) {
   return ((paise || 0) / 100).toFixed(0);
 }
 
-/** True when this meal has a positive veg or non-veg rate (zero = not offered). */
+/**
+ * Lunch and dinner are always offered for headcount (₹0 = free, still selectable).
+ * Args kept for call-site compatibility.
+ */
 export function mealIsOffered(
-  vegPaise: number,
-  nonvegPaise?: number | null
+  _vegPaise?: number,
+  _nonvegPaise?: number | null
 ): boolean {
+  return true;
+}
+
+/** Normalize guest meal choices (meals stay selectable even when priced at ₹0). */
+export function clampGuestMealsToPricing(
+  _pricing: EventPricing,
+  guests: GuestChoice[]
+): GuestChoice[] {
+  return guests.map((g) => normalizeGuest(g));
+}
+
+function mealRateLine(
+  name: string,
+  vegPaise: number,
+  nonvegPaise: number | null | undefined
+): string {
   const veg = Math.max(0, Number(vegPaise) || 0);
   const non =
     nonvegPaise == null || !Number.isFinite(Number(nonvegPaise))
       ? veg
       : Math.max(0, Number(nonvegPaise));
-  return veg > 0 || non > 0;
+  if (veg === 0 && non === 0) return `${name} Free`;
+  if (non === veg) return `${name} ₹${rupees(veg)} / person`;
+  return `${name} veg ₹${rupees(veg)} · non-veg ₹${rupees(non)} / person`;
 }
 
-/** Drop lunch/dinner choices when that meal’s event price is zero. */
-export function clampGuestMealsToPricing(
-  pricing: EventPricing,
-  guests: GuestChoice[]
-): GuestChoice[] {
-  const lunchOn = mealIsOffered(pricing.lunch_paise, pricing.lunch_nonveg_paise);
-  const dinnerOn = mealIsOffered(pricing.dinner_paise, pricing.dinner_nonveg_paise);
-  return guests.map((g) => {
-    const guest = normalizeGuest(g);
-    if (!lunchOn && !dinnerOn) {
-      return { preference: 'none' as const, lunch: false, dinner: false };
-    }
-    return {
-      ...guest,
-      lunch: lunchOn && guest.lunch,
-      dinner: dinnerOn && guest.dinner,
-    };
-  });
-}
-
-/** One line of meal rates. Omits lunch/dinner when priced at zero. */
+/** One line of meal rates (includes Free when priced at ₹0). */
 export function mealPriceSummary(event: EventPricing): string {
-  const bits: string[] = [];
-  if (mealIsOffered(event.lunch_paise, event.lunch_nonveg_paise)) {
-    const lunchNon = event.lunch_nonveg_paise == null ? event.lunch_paise : event.lunch_nonveg_paise;
-    bits.push(
-      lunchNon === event.lunch_paise
-        ? `Lunch ₹${rupees(event.lunch_paise)} / person`
-        : `Lunch veg ₹${rupees(event.lunch_paise)} · non-veg ₹${rupees(lunchNon)} / person`
-    );
-  }
-  if (mealIsOffered(event.dinner_paise, event.dinner_nonveg_paise)) {
-    const dinnerNon = event.dinner_nonveg_paise == null ? event.dinner_paise : event.dinner_nonveg_paise;
-    bits.push(
-      dinnerNon === event.dinner_paise
-        ? `Dinner ₹${rupees(event.dinner_paise)} / person`
-        : `Dinner veg ₹${rupees(event.dinner_paise)} · non-veg ₹${rupees(dinnerNon)} / person`
-    );
-  }
-  return bits.join(' · ') || 'No meals on this event';
+  return [
+    mealRateLine('Lunch', event.lunch_paise, event.lunch_nonveg_paise),
+    mealRateLine('Dinner', event.dinner_paise, event.dinner_nonveg_paise),
+  ].join(' · ');
 }
 
 export function mealChoiceLabel(
@@ -109,7 +96,9 @@ export function mealChoiceLabel(
   preference: 'veg' | 'non-veg' | 'none'
 ): string {
   const rate = preference === 'non-veg' && nonvegPaise != null ? nonvegPaise : vegPaise;
-  return `${name} · ₹${rupees(rate)} / person`;
+  const n = Math.max(0, Number(rate) || 0);
+  if (n === 0) return `${name} · Free`;
+  return `${name} · ₹${rupees(n)} / person`;
 }
 
 export function parseNonNegInt(value: unknown, fallback = 0): number {

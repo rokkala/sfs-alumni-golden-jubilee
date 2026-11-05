@@ -179,13 +179,13 @@ assert(
   'zero dinner price is not charged even if dinner is selected'
 );
 assert(
-  !getEventCostBreakdown(zeroDinner, {
+  getEventCostBreakdown(zeroDinner, {
     numberOfGuests: 1,
     lunch: true,
     dinner: true,
     parkingNeeded: 'none',
   }).details.toLowerCase().includes('dinner'),
-  'breakdown omits zero-priced dinner'
+  'zero-priced dinner still counts in the breakdown'
 );
 
 const ranged = {
