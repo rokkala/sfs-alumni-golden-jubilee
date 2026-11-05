@@ -2,6 +2,9 @@
 export const DONATION_AMOUNT_CHIPS_PAISE = [0, 100_000, 500_000, 1_000_000] as const;
 
 export const DONATION_MIN_PAISE = 100;
+/** ₹10 lakh max (custom / any donation). */
+export const DONATION_MAX_PAISE = 100_000_000;
+export const DONATION_MAX_RUPEES = DONATION_MAX_PAISE / 100;
 export const DONATION_MAX_MESSAGE = 280;
 
 /** Throws Error with member-facing message when invalid. Zero is not payable. */
@@ -10,8 +13,8 @@ export function assertDonationAmountPaise(value: unknown): number {
   if (!Number.isFinite(n) || n < DONATION_MIN_PAISE) {
     throw new Error('Donation must be at least ₹1');
   }
-  if (n > 10_000_000_00) {
-    throw new Error('Donation amount is too large');
+  if (n > DONATION_MAX_PAISE) {
+    throw new Error('Donation cannot exceed ₹10,00,000');
   }
   return n;
 }

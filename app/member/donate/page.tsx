@@ -7,6 +7,8 @@ import PortalShell from '@/components/portal-shell';
 import {
   DONATION_AMOUNT_CHIPS_PAISE,
   DONATION_MAX_MESSAGE,
+  DONATION_MAX_PAISE,
+  DONATION_MAX_RUPEES,
 } from '@/lib/donations/validate';
 import { openRazorpayCheckout } from '@/lib/payments/checkout-client';
 
@@ -67,14 +69,14 @@ export default function MemberDonatePage() {
   function amountPaise(): number | null {
     if (useCustom) {
       const n = Math.round(Number(customRupees) * 100);
-      if (!Number.isFinite(n) || n < 100) return null;
+      if (!Number.isFinite(n) || n < 100 || n > DONATION_MAX_PAISE) return null;
       return n;
     }
     return chipPaise;
   }
 
   const payableAmount = amountPaise();
-  const canPay = payableAmount != null && payableAmount >= 100;
+  const canPay = payableAmount != null && payableAmount >= 100 && payableAmount <= DONATION_MAX_PAISE;
 
   async function onPay(e: FormEvent) {
     e.preventDefault();
@@ -85,8 +87,12 @@ export default function MemberDonatePage() {
       setError('Choose a cause');
       return;
     }
-    if (amount == null || amount < 100) {
-      setError(useCustom ? 'Enter a positive amount of at least ₹1' : 'Choose an amount above ₹0 to pay');
+    if (amount == null || amount < 100 || amount > DONATION_MAX_PAISE) {
+      setError(
+        useCustom
+          ? `Enter a positive amount between ₹1 and ₹${DONATION_MAX_RUPEES.toLocaleString('en-IN')}`
+          : 'Choose an amount above ₹0 to pay'
+      );
       return;
     }
     setBusy(true);
@@ -281,18 +287,30 @@ export default function MemberDonatePage() {
                         onChange={() => setUseCustom(true)}
                         disabled={busy}
                       />
-                      <span className="text-body-md text-primary font-semibold">Other amount</span>
+                      <span className="text-body-md text-primary font-semibold">
+                        Other Amount (User Enterable Positive Amount)
+                      </span>
                     </span>
                     {useCustom ? (
                       <input
                         type="number"
                         min={1}
+                        max={DONATION_MAX_RUPEES}
                         step={1}
                         inputMode="numeric"
                         value={customRupees}
-                        onChange={(e) => setCustomRupees(e.target.value)}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') {
+                            setCustomRupees('');
+                            return;
+                          }
+                          const n = Number(raw);
+                          if (!Number.isFinite(n)) return;
+                          setCustomRupees(String(Math.min(DONATION_MAX_RUPEES, Math.max(0, n))));
+                        }}
                         disabled={busy}
-                        placeholder="Enter amount in ₹"
+                        placeholder={`Enter amount in ₹ (max ₹${DONATION_MAX_RUPEES.toLocaleString('en-IN')})`}
                         className="w-full px-4 py-3 rounded-lg border border-outline-variant text-body-sm bg-surface focus:outline-none focus:border-primary"
                       />
                     ) : null}
