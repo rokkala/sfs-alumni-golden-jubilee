@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       .insert(stripped)
       .select(EVENT_SELECT_CORE)
       .single();
-    data = retry.data;
+    data = retry.data as unknown as typeof data;
     error = retry.error;
     warning = partyMissing ? PARTY_LIMITS_WARNING : DIET_PRICE_WARNING;
   }
